@@ -219,7 +219,6 @@ components:
       - "Dockerfile*"
       - ".config/**" # nextest and cargo-rail configuration
       - "!foreign/**" # Exclude foreign SDKs
-      - "!web/**" # Exclude web UI
     tasks:
       - "check"
       - "fmt"
@@ -578,11 +577,6 @@ components:
       - "scripts/run-examples-from-readme.sh"
       - "scripts/utils.sh"
     tasks: ["examples-swift"]
-
-  web-ui:
-    paths:
-      - "web/**"
-    tasks: ["lint", "test", "build"]
 
   helm:
     paths:

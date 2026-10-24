@@ -44,5 +44,4 @@
 !/scripts/ci/render-node-licenses.mjs
 **/target
 /target
-/web/node_modules
-/web/dist
+/core/web_ui/dist

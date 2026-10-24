@@ -104,7 +104,7 @@ jobs:
           /tmp/copy-latest-from-master.sh save \
             .github \
             scripts \
-            web/Dockerfile \
+            core/web_ui/Dockerfile \
             core/server/Dockerfile \
             core/ai/mcp/Dockerfile \
             core/connectors/runtime/Dockerfile \
