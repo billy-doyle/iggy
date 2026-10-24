@@ -17,11 +17,14 @@
 
 //! Modal forms that create, change and delete resources.
 
+mod permissions;
 mod stream;
 mod topic;
+mod user;
 
 pub use stream::{NewStreamForm, StreamSettingsForm};
 pub use topic::{AddPartitionsForm, DeletePartitionsForm, NewTopicForm, TopicSettingsForm};
+pub use user::{EditUserForm, NewUserForm};
 
 use crate::models::OptionInputs;
 

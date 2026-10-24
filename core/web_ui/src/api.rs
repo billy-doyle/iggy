@@ -21,8 +21,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::Session;
 use crate::models::{
-    CreateStream, CreateTopic, IdentityInfo, LoginRequest, PartitionsCount, PolledMessages, Stats,
-    Stream, StreamDetails, TopicDetails, TopicUpdate, UserDetails,
+    CreateStream, CreateTopic, CreateUser, IdentityInfo, LoginRequest, PartitionsCount,
+    PolledMessages, Stats, Stream, StreamDetails, TopicDetails, TopicUpdate, UserDetails, UserInfo,
+    UserUpdate,
 };
 
 /// Empty in the embedded build so requests go to the server that served the
@@ -71,6 +72,21 @@ impl ApiClient {
 
     pub async fn logout(&self) -> Result<(), ApiError> {
         let response = self.send(Request::delete(&url("/users/logout"))).await?;
+        check_status(response).await.map(drop)
+    }
+
+    pub async fn users(&self) -> Result<Vec<UserInfo>, ApiError> {
+        self.get("/users", &[]).await
+    }
+
+    pub async fn create_user(&self, user: &CreateUser) -> Result<(), ApiError> {
+        let response = self.send_json(Request::post(&url("/users")), user).await?;
+        check_status(response).await.map(drop)
+    }
+
+    pub async fn update_user(&self, user_id: u32, update: &UserUpdate) -> Result<(), ApiError> {
+        let path = format!("/users/{user_id}");
+        let response = self.send_json(Request::put(&url(&path)), update).await?;
         check_status(response).await.map(drop)
     }
 

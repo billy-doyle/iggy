@@ -44,6 +44,61 @@ pub struct TokenInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct UserInfo {
+    pub id: u32,
+    pub created_at: u64,
+    pub status: UserStatus,
+    pub username: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UserStatus {
+    Active,
+    Inactive,
+}
+
+impl UserStatus {
+    pub const ALL: [Self; 2] = [Self::Active, Self::Inactive];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Inactive => "inactive",
+        }
+    }
+}
+
+impl std::str::FromStr for UserStatus {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|status| status.as_str() == text)
+            .ok_or_else(|| format!("unknown user status {text}"))
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateUser {
+    pub username: String,
+    pub password: String,
+    pub status: UserStatus,
+    /// Built by [`crate::permissions::PermissionsDraft::to_json`].
+    pub permissions: serde_json::Value,
+}
+
+/// A sparse `PUT /users/{id}` body.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct UserUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<UserStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct UserDetails {
     pub id: u32,
     pub username: String,
