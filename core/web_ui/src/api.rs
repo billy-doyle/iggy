@@ -21,7 +21,8 @@ use serde::de::DeserializeOwned;
 
 use crate::auth::Session;
 use crate::models::{
-    IdentityInfo, LoginRequest, PolledMessages, Stream, StreamDetails, TopicDetails, UserDetails,
+    IdentityInfo, LoginRequest, PolledMessages, Stats, Stream, StreamDetails, TopicDetails,
+    UserDetails,
 };
 
 /// Empty in the embedded build so requests go to the server that served the
@@ -84,6 +85,10 @@ impl ApiClient {
 
     pub async fn user(&self, user_id: u32) -> Result<UserDetails, ApiError> {
         self.get(&format!("/users/{user_id}"), &[]).await
+    }
+
+    pub async fn stats(&self) -> Result<Stats, ApiError> {
+        self.get("/stats", &[]).await
     }
 
     pub async fn streams(&self) -> Result<Vec<Stream>, ApiError> {

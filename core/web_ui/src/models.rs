@@ -49,6 +49,43 @@ pub struct UserDetails {
     pub username: String,
 }
 
+/// `GET /stats`. Byte sizes arrive as exact-unit strings such as
+/// `"8615888 KiB"`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Stats {
+    pub process_id: u32,
+    pub cpu_usage: f32,
+    pub total_cpu_usage: f32,
+    pub memory_usage: String,
+    pub total_memory: String,
+    pub available_memory: String,
+    /// Microseconds.
+    pub run_time: u64,
+    pub start_time: u64,
+    pub read_bytes: String,
+    pub written_bytes: String,
+    pub messages_size_bytes: String,
+    pub streams_count: u32,
+    pub topics_count: u32,
+    pub partitions_count: u32,
+    pub segments_count: u32,
+    pub messages_count: u64,
+    pub clients_count: u32,
+    pub consumer_groups_count: u32,
+    pub hostname: String,
+    pub os_name: String,
+    pub os_version: String,
+    pub kernel_version: String,
+    pub iggy_server_version: String,
+    pub threads_count: u32,
+    pub free_disk_space: String,
+    pub total_disk_space: String,
+    #[serde(default)]
+    pub open_files_count: u64,
+    #[serde(default)]
+    pub open_files_limit: u64,
+}
+
 /// One entry of a resource's `options` map, as written by
 /// `iggy_common::resource_options_json`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
