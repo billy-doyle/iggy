@@ -21,10 +21,11 @@
         "about.toml",
         "about.hbs",
         "core/server/Dockerfile",
-        "web/**",
+        "core/web_ui/**",
+        "scripts/build-web-ui.sh",
+        "scripts/ci/install-dx.sh",
         "scripts/extract-version.sh",
-        "scripts/ci/third-party-licenses.sh",
-        "scripts/ci/render-node-licenses.mjs"
+        "scripts/ci/third-party-licenses.sh"
       ]
     },
     {
@@ -120,6 +121,9 @@
     {
       "id": "web-ui",
       "dimensions": { "component": "web-ui" },
+      "cargo_roots": [
+        { "package": "iggy-web-ui", "target": { "name": "iggy-web-ui", "kind": "bin" } }
+      ],
       "external_paths": [
         ".dockerignore",
         ".github/actions/utils/docker-buildx/**",
@@ -129,10 +133,13 @@
         ".github/workflows/publish.yml",
         "LICENSE",
         "NOTICE",
-        "web/**",
+        "about.toml",
+        "about.hbs",
+        "core/web_ui/**",
+        "scripts/build-web-ui.sh",
+        "scripts/ci/install-dx.sh",
         "scripts/extract-version.sh",
-        "scripts/ci/third-party-licenses.sh",
-        "scripts/ci/render-node-licenses.mjs"
+        "scripts/ci/third-party-licenses.sh"
       ]
     }
   ]

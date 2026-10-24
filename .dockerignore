@@ -20,7 +20,6 @@
 /foreign/java/**/build
 /bdd/java/build
 /examples/java/**/build
-/web/build
 /foreign/csharp/**/bin
 /foreign/csharp/**/obj
 /foreign/cpp/bazel-*
@@ -44,6 +43,4 @@
 !/target/debug/iggy-server
 !/target/debug/iggy-mcp
 !/target/debug/iggy-connectors
-/web/node_modules
-/web/dist
 /core/web_ui/dist

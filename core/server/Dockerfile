@@ -18,6 +18,17 @@
 ARG RUST_VERSION=1.99.1
 ARG ALPINE_VERSION=3.23
 
+# ── web UI bundle ────────────────────────────────────────────────────────────
+# The server embeds the web UI. The bundle is WebAssembly, the same on every
+# platform, and dx only ships glibc Linux builds, so it is built once on a
+# Debian stage and copied into the Alpine builder.
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-trixie AS web-ui
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN ./scripts/ci/install-dx.sh /usr/local/bin && ./scripts/build-web-ui.sh
+
 # ── from-source path ─────────────────────────────────────────────────────────
 FROM --platform=$BUILDPLATFORM lukemathwalker/cargo-chef:latest-rust-${RUST_VERSION}-alpine${ALPINE_VERSION} AS chef
 WORKDIR /app
@@ -34,7 +45,7 @@ ARG LIBC=musl
 ARG IGGY_CI_BUILD
 ENV IGGY_CI_BUILD=${IGGY_CI_BUILD}
 
-RUN apk add --no-cache bash curl tar zig make autoconf automake libtool pkgconfig hwloc-dev xz-dev xz-static nodejs npm && \
+RUN apk add --no-cache bash curl tar zig make autoconf automake libtool pkgconfig hwloc-dev xz-dev xz-static && \
     cargo install cargo-zigbuild --version '=0.23.2' --locked
 
 COPY rust-toolchain.toml rust-toolchain.toml
@@ -70,8 +81,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-${TARG
 
 COPY . .
 
-# Build Web UI static files for embedding
-RUN npm --prefix web ci && npm --prefix web run build:static
+COPY --from=web-ui /app/core/web_ui/dist core/web_ui/dist
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-${TARGETPLATFORM}-${LIBC} \
     --mount=type=cache,target=/usr/local/cargo/git,id=cargo-git-${TARGETPLATFORM}-${LIBC} \
@@ -102,7 +112,7 @@ RUN TARGET="$(uname -m)-unknown-linux-musl" && \
     ./scripts/ci/third-party-licenses.sh --generate \
       --manifest core/server/Cargo.toml \
       --manifest core/cli/Cargo.toml \
-      --manifest web \
+      --manifest core/web_ui/Cargo.toml \
       --output /app/LICENSE-binary
 
 # ── prebuilt path (FAST) ──────────────────────────────────────────────────────
@@ -118,18 +128,17 @@ RUN chmod +x /out/iggy-server /out/iggy
 # built externally from this same Cargo.lock, so the manifest accurately
 # reflects what is statically linked into the image. iggy-server embeds
 # the compiled web UI (see core/server/build.rs), so the manifest must
-# also enumerate the web npm production dependencies.
+# also enumerate the web UI crates.
 FROM --platform=$BUILDPLATFORM chef AS license-gen
-RUN apk add --no-cache bash curl tar nodejs npm
+RUN apk add --no-cache bash curl tar
 COPY . .
-RUN cd web && npm ci --omit=dev --prefer-offline --no-audit
 RUN TARGET="$(uname -m)-unknown-linux-musl" && \
     curl -sSfL "https://github.com/EmbarkStudios/cargo-about/releases/download/0.9.0/cargo-about-0.9.0-${TARGET}.tar.gz" \
       | tar -xz -C /usr/local/bin --strip-components=1 "cargo-about-0.9.0-${TARGET}/cargo-about" && \
     ./scripts/ci/third-party-licenses.sh --generate \
       --manifest core/server/Cargo.toml \
       --manifest core/cli/Cargo.toml \
-      --manifest web \
+      --manifest core/web_ui/Cargo.toml \
       --output /app/LICENSE-binary
 
 # ── final images ──────────────────────────────────────────────────────────────

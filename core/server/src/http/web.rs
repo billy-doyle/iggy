@@ -24,7 +24,7 @@ use axum::routing::get;
 use rust_embed::{Embed, EmbeddedFile};
 
 #[derive(Embed)]
-#[folder = "../../web/build/static/"]
+#[folder = "../web_ui/dist/public/"]
 #[allow_missing = true]
 struct WebAssets;
 
