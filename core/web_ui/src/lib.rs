@@ -24,15 +24,20 @@ mod forms;
 mod models;
 mod pages;
 mod permissions;
+mod settings;
+mod storage;
 
 use dioxus::prelude::*;
 
 use crate::auth::Session;
+use crate::components::RefreshTick;
 pub use crate::route::Route;
+use crate::settings::UiSettings;
 
 const STYLESHEET: Asset = asset!("/assets/main.css");
 const FAVICON: Asset = asset!("/assets/favicon.svg");
-const LOGO: Asset = asset!("/assets/iggy-apache-darkbg.svg");
+const LOGO_ON_DARK: Asset = asset!("/assets/iggy-apache-darkbg.svg");
+const LOGO_ON_LIGHT: Asset = asset!("/assets/iggy-apache-lightbg.svg");
 
 // The `Routable` derive of dioxus 0.7.10 builds calls that take a value of an
 // empty error enum, and Rust 1.100 reports such a call as unreachable. An allow
@@ -43,7 +48,7 @@ mod route {
 
     use crate::pages::{
         DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage,
-        Users,
+        Users, WebUiSettings,
     };
 
     #[derive(Debug, Clone, PartialEq, Routable)]
@@ -66,6 +71,8 @@ mod route {
             Messages { stream_id: u32, topic_id: u32, partition_id: u32, offset: Option<u64> },
             #[route("/dashboard/settings/users")]
             Users {},
+            #[route("/dashboard/settings/webUI")]
+            WebUiSettings {},
         #[end_layout]
         #[route("/:..segments")]
         NotFound { segments: Vec<String> },
@@ -82,10 +89,14 @@ pub fn launch() {
 #[component]
 fn App() -> Element {
     use_context_provider(|| Signal::new(Session::restore()));
+    use_context_provider(|| RefreshTick(Signal::new(0)));
+    let settings = use_context_provider(|| Signal::new(UiSettings::restore()));
 
     rsx! {
         document::Link { rel: "icon", r#type: "image/svg+xml", href: FAVICON }
         document::Stylesheet { href: STYLESHEET }
-        Router::<Route> {}
+        div { class: "app", "data-theme": settings.read().theme.as_str(),
+            Router::<Route> {}
+        }
     }
 }

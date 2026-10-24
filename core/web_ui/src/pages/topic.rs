@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{Crumb, ErrorView, Loading, PageHeader, Stat, api_client, use_session};
+use crate::components::{Crumb, ErrorView, Loading, PageHeader, Stat, use_api};
 use crate::format;
 use crate::forms::{AddPartitionsForm, DeletePartitionsForm, TopicSettingsForm};
 
@@ -31,10 +31,10 @@ enum TopicDialog {
 
 #[component]
 pub fn TopicPage(stream_id: u32, topic_id: u32) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut dialog = use_signal(|| None::<TopicDialog>);
     let mut topic = use_resource(use_reactive!(|(stream_id, topic_id)| async move {
-        api_client(session).topic(stream_id, topic_id).await
+        api.client().topic(stream_id, topic_id).await
     }));
     let close = move |_| dialog.set(None);
     let saved = move |_| {

@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::api::ApiError;
-use crate::components::{ErrorView, Loading, PageHeader, api_client, use_session};
+use crate::components::{ErrorView, Loading, PageHeader, use_api};
 use crate::format;
 use crate::forms::{EditUserForm, NewUserForm};
 use crate::models::{UserInfo, UserStatus};
@@ -34,11 +34,11 @@ enum UserDialog {
 
 #[component]
 pub fn Users() -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut search = use_signal(String::new);
     let mut dialog = use_signal(|| None::<UserDialog>);
     let mut users = use_resource(move || async move {
-        let mut users = api_client(session).users().await?;
+        let mut users = api.client().users().await?;
         users.sort_by_key(|user| user.id);
         Ok::<_, ApiError>(users)
     });

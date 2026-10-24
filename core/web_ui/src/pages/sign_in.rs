@@ -17,11 +17,11 @@
 
 use dioxus::prelude::*;
 
+use crate::Route;
 use crate::api::ApiClient;
 use crate::auth::Session;
-use crate::components::use_session;
+use crate::components::{Logo, use_session};
 use crate::models::LoginUser;
-use crate::{LOGO, Route};
 
 #[component]
 pub fn SignIn() -> Element {
@@ -61,7 +61,7 @@ pub fn SignIn() -> Element {
     rsx! {
         main { class: "auth",
             form { class: "auth-card", onsubmit: submit,
-                img { class: "auth-logo", src: LOGO, alt: "Apache Iggy" }
+                Logo { class: "auth-logo" }
                 label {
                     "Username"
                     input {

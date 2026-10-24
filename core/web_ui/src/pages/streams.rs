@@ -19,7 +19,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::api::ApiError;
-use crate::components::{Crumb, ErrorView, Loading, PageHeader, Stat, api_client, use_session};
+use crate::components::{Crumb, ErrorView, Loading, PageHeader, Stat, use_api};
 use crate::format;
 use crate::forms::{NewStreamForm, NewTopicForm, StreamSettingsForm};
 
@@ -31,10 +31,10 @@ enum StreamDialog {
 
 #[component]
 pub fn Streams() -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut creating = use_signal(|| false);
     let mut streams = use_resource(move || async move {
-        let mut streams = api_client(session).streams().await?;
+        let mut streams = api.client().streams().await?;
         streams.sort_by_key(|stream| stream.id);
         Ok::<_, ApiError>(streams)
     });
@@ -95,10 +95,10 @@ pub fn Streams() -> Element {
 
 #[component]
 pub fn StreamPage(stream_id: u32) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut dialog = use_signal(|| None::<StreamDialog>);
     let mut stream = use_resource(use_reactive!(|(stream_id,)| async move {
-        api_client(session).stream(stream_id).await
+        api.client().stream(stream_id).await
     }));
     let close = move |_| dialog.set(None);
     let saved = move |_| {
