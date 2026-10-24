@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{ConfirmDelete, FormActions, Modal, api_client, use_session};
+use crate::components::{ConfirmDelete, FormActions, Modal, use_api};
 use crate::format;
 use crate::models::{CreateTopic, TopicDetails, TopicUpdate};
 
@@ -33,7 +33,7 @@ pub fn NewTopicForm(
     on_close: EventHandler<()>,
     on_created: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut name = use_signal(String::new);
     let mut partitions = use_signal(|| "1".to_owned());
     let mut compression = use_signal(|| "none".to_owned());
@@ -65,7 +65,7 @@ pub fn NewTopicForm(
             ]),
         };
         busy.set(true);
-        let result = api_client(session).create_topic(stream_id, &topic).await;
+        let result = api.client().create_topic(stream_id, &topic).await;
         busy.set(false);
         match result {
             Ok(_) => on_created.call(()),
@@ -137,7 +137,7 @@ pub fn TopicSettingsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let navigator = navigator();
     let topic_id = topic.id;
     let initial_name = topic.name.clone();
@@ -183,7 +183,8 @@ pub fn TopicSettingsForm(
                 return;
             }
             busy.set(true);
-            let result = api_client(session)
+            let result = api
+                .client()
                 .update_topic(stream_id, topic_id, &update)
                 .await;
             busy.set(false);
@@ -196,7 +197,7 @@ pub fn TopicSettingsForm(
 
     let delete = move |_| async move {
         busy.set(true);
-        let result = api_client(session).delete_topic(stream_id, topic_id).await;
+        let result = api.client().delete_topic(stream_id, topic_id).await;
         busy.set(false);
         match result {
             Ok(()) => {
@@ -303,7 +304,7 @@ pub fn AddPartitionsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut count = use_signal(|| "1".to_owned());
     let mut busy = use_signal(|| false);
     let mut error = use_signal(|| None::<String>);
@@ -318,7 +319,8 @@ pub fn AddPartitionsForm(
             }
         };
         busy.set(true);
-        let result = api_client(session)
+        let result = api
+            .client()
             .create_partitions(stream_id, topic_id, partitions_count)
             .await;
         busy.set(false);
@@ -360,7 +362,7 @@ pub fn DeletePartitionsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let topic_id = topic.id;
     let mut count = use_signal(|| "1".to_owned());
     let mut confirmed_count = use_signal(|| None::<u32>);
@@ -372,7 +374,8 @@ pub fn DeletePartitionsForm(
             return;
         };
         busy.set(true);
-        let result = api_client(session)
+        let result = api
+            .client()
             .delete_partitions(stream_id, topic_id, partitions_count)
             .await;
         busy.set(false);

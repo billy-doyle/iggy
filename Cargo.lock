@@ -6833,6 +6833,8 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "482ce8a491a501da4cd806bd190275363d674f2845005c6ddbd5d3e1dd54495d"
 dependencies = [
+ "futures-channel",
+ "futures-core",
  "js-sys",
  "wasm-bindgen",
 ]
@@ -8085,6 +8087,7 @@ dependencies = [
  "dioxus",
  "gloo-net 0.7.0",
  "gloo-storage 0.4.0",
+ "gloo-timers 0.4.0",
  "js-sys",
  "roxmltree",
  "serde",

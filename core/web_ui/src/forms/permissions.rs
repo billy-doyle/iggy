@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::api::ApiError;
-use crate::components::{api_client, use_session};
+use crate::components::use_api;
 use crate::permissions::{
     Flag, GLOBAL_FLAGS, PermissionsDraft, STREAM_FLAGS, TOPIC_FLAGS, global_grant_for,
 };
@@ -27,9 +27,9 @@ use crate::permissions::{
 /// One stream and one topic are edited at a time, chosen from lists.
 #[component]
 pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let streams = use_resource(move || async move {
-        let mut streams = api_client(session).streams().await?;
+        let mut streams = api.client().streams().await?;
         streams.sort_by_key(|stream| stream.id);
         Ok::<_, ApiError>(streams)
     });
@@ -50,7 +50,7 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
         let Some(stream_id) = stream_id() else {
             return Ok(Vec::new());
         };
-        let mut topics = api_client(session).stream(stream_id).await?.topics;
+        let mut topics = api.client().stream(stream_id).await?.topics;
         topics.sort_by_key(|topic| topic.id);
         Ok::<_, ApiError>(topics)
     });

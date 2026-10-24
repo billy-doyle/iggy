@@ -19,7 +19,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::api::ApiError;
-use crate::components::{Crumb, ErrorView, Loading, PageHeader, api_client, use_session};
+use crate::components::{Crumb, ErrorView, Loading, PageHeader, use_api};
 use crate::format;
 use crate::models::Message;
 
@@ -39,14 +39,14 @@ struct MessagesPage {
 
 #[component]
 pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32) -> Element {
-    let session = use_session();
+    let api = use_api();
     // `None` follows the newest page, so reloading picks up new messages.
     let mut requested_offset = use_signal(|| None::<u64>);
     let mut inspecting = use_signal(|| None::<Message>);
 
     let page = use_resource(use_reactive!(
         |(stream_id, topic_id, partition_id)| async move {
-            let client = api_client(session);
+            let client = api.client();
             let topic = client.topic(stream_id, topic_id).await?;
             let partition = topic
                 .partitions

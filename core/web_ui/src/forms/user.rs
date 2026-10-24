@@ -17,7 +17,7 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{FormActions, Modal, api_client, use_session};
+use crate::components::{FormActions, Modal, use_api};
 use crate::models::{CreateUser, UserInfo, UserStatus, UserUpdate};
 use crate::permissions::PermissionsDraft;
 
@@ -25,7 +25,7 @@ use super::permissions::PermissionsEditor;
 
 #[component]
 pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut username = use_signal(String::new);
     let mut password = use_signal(String::new);
     let status = use_signal(|| UserStatus::Active);
@@ -42,7 +42,7 @@ pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> 
             permissions: draft.read().to_json(),
         };
         busy.set(true);
-        let result = api_client(session).create_user(&user).await;
+        let result = api.client().create_user(&user).await;
         busy.set(false);
         match result {
             Ok(()) => on_created.call(()),
@@ -94,7 +94,7 @@ pub fn EditUserForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let user_id = user.id;
     let initial_username = user.username.clone();
     let initial_status = user.status;
@@ -117,7 +117,7 @@ pub fn EditUserForm(
                 return;
             }
             busy.set(true);
-            let result = api_client(session).update_user(user_id, &update).await;
+            let result = api.client().update_user(user_id, &update).await;
             busy.set(false);
             match result {
                 Ok(()) => on_saved.call(()),
