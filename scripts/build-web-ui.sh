@@ -19,6 +19,7 @@
 set -Eeuo pipefail
 
 # Builds the Dioxus web UI into core/web_ui/dist, where iggy-server embeds it.
+# Needs dx on PATH, see scripts/ci/install-dx.sh.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CRATE_DIR="${REPO_ROOT}/core/web_ui"
@@ -26,6 +27,8 @@ CRATE_DIR="${REPO_ROOT}/core/web_ui"
 # dx keeps every previously hashed asset in its staging directory and copies
 # all of them into the bundle, so stale builds would end up in the server binary.
 rm -rf "${REPO_ROOT}/target/dx/iggy-web-ui" "${CRATE_DIR}/dist"
+
+rustup target add wasm32-unknown-unknown
 
 cd "${CRATE_DIR}"
 dx bundle --platform web --release --out-dir dist
