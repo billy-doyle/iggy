@@ -79,6 +79,7 @@ pub fn Modal(
     on_close: EventHandler<()>,
     children: Element,
     #[props(default)] busy: bool,
+    #[props(default)] wide: bool,
 ) -> Element {
     let close = move || {
         if !busy {
@@ -98,7 +99,7 @@ pub fn Modal(
             // Focusable, so a click inside keeps focus in the dialog and the
             // backdrop still hears Escape.
             div {
-                class: "modal",
+                class: if wide { "modal wide" } else { "modal" },
                 role: "dialog",
                 aria_modal: "true",
                 tabindex: "-1",

@@ -22,6 +22,7 @@ mod format;
 mod forms;
 mod models;
 mod pages;
+mod permissions;
 
 use dioxus::prelude::*;
 
@@ -41,6 +42,7 @@ mod route {
 
     use crate::pages::{
         DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage,
+        Users,
     };
 
     #[derive(Debug, Clone, PartialEq, Routable)]
@@ -61,6 +63,8 @@ mod route {
             TopicPage { stream_id: u32, topic_id: u32 },
             #[route("/dashboard/streams/:stream_id/topics/:topic_id/partitions/:partition_id/messages?:offset")]
             Messages { stream_id: u32, topic_id: u32, partition_id: u32, offset: Option<u64> },
+            #[route("/dashboard/settings/users")]
+            Users {},
         #[end_layout]
         #[route("/:..segments")]
         NotFound { segments: Vec<String> },
