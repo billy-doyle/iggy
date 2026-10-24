@@ -22,6 +22,7 @@ mod overview;
 mod sign_in;
 mod streams;
 mod topic;
+mod users;
 
 pub use layout::DashboardLayout;
 pub use messages::Messages;
@@ -30,3 +31,4 @@ pub use overview::Overview;
 pub use sign_in::SignIn;
 pub use streams::{StreamPage, Streams};
 pub use topic::TopicPage;
+pub use users::Users;

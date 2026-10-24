@@ -22,12 +22,13 @@ mod format;
 mod forms;
 mod models;
 mod pages;
+mod permissions;
 
 use dioxus::prelude::*;
 
 use crate::auth::Session;
 use crate::pages::{
-    DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage,
+    DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage, Users,
 };
 
 const STYLESHEET: Asset = asset!("/assets/main.css");
@@ -52,6 +53,8 @@ pub enum Route {
         TopicPage { stream_id: u32, topic_id: u32 },
         #[route("/dashboard/streams/:stream_id/topics/:topic_id/partitions/:partition_id/messages?:offset")]
         Messages { stream_id: u32, topic_id: u32, partition_id: u32, offset: Option<u64> },
+        #[route("/dashboard/settings/users")]
+        Users {},
     #[end_layout]
     #[route("/:..segments")]
     NotFound { segments: Vec<String> },

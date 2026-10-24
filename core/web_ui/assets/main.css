@@ -432,3 +432,73 @@ details pre {
 .danger-zone button {
   flex-shrink: 0;
 }
+
+.modal.wide {
+  width: min(760px, 100%);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.permissions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.permissions legend {
+  padding: 0 0.35rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.flag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.6rem 1rem;
+}
+
+.form .flag-grid label.checkbox {
+  margin-top: 0;
+  color: var(--text);
+}
+
+.form .flag-grid label.checkbox:has(input:disabled) {
+  color: var(--text-muted);
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+td > .badge:only-child {
+  margin-left: 0;
+}
+
+.badge.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.small {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+input.search {
+  width: 200px;
+  margin-top: 0;
+}
