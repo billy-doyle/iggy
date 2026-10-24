@@ -72,7 +72,12 @@ pub fn Loading() -> Element {
 
 /// A dialog over the page. Clicking the backdrop or pressing Escape closes it.
 #[component]
-pub fn Modal(title: String, on_close: EventHandler<()>, children: Element) -> Element {
+pub fn Modal(
+    title: String,
+    on_close: EventHandler<()>,
+    children: Element,
+    #[props(default)] wide: bool,
+) -> Element {
     rsx! {
         div {
             class: "modal-backdrop",
@@ -83,7 +88,7 @@ pub fn Modal(title: String, on_close: EventHandler<()>, children: Element) -> El
                 }
             },
             div {
-                class: "modal",
+                class: if wide { "modal wide" } else { "modal" },
                 role: "dialog",
                 aria_modal: "true",
                 onclick: move |event| event.stop_propagation(),
