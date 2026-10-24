@@ -58,7 +58,7 @@ Components:
   sdk-go               foreign/go/contracts/version.go
   sdk-csharp           foreign/csharp/Iggy_SDK/Iggy_SDK.csproj
   sdk-java             foreign/java/gradle.properties
-  web-ui               web/package.json
+  web-ui               core/web_ui/Cargo.toml
 
 Version flags (exactly one required):
   --patch       Bump patch version (0.9.3 -> 0.9.4)
@@ -169,7 +169,7 @@ get_version_files() {
             echo "foreign/java/gradle.properties:gradle"
             ;;
         web-ui)
-            echo "web/package.json:json"
+            echo "core/web_ui/Cargo.toml:cargo"
             ;;
         *)
             echo -e "${RED}Unknown component: ${component}${NC}" >&2

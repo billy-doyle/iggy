@@ -24,7 +24,7 @@ use axum::routing::get;
 use rust_embed::{Embed, EmbeddedFile};
 
 #[derive(Embed)]
-#[folder = "../../web/build/static/"]
+#[folder = "../web_ui/dist/public/"]
 #[allow_missing = true]
 struct WebAssets;
 
@@ -68,9 +68,20 @@ fn try_serve_file(path: &str) -> Option<Response<Body>> {
         Response::builder()
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, mime.as_ref())
+            .header(header::CACHE_CONTROL, cache_control(path))
             .body(Body::from(asset.data.into_owned()))
             .unwrap(),
     )
+}
+
+/// File names under `assets/` carry a content hash, so a cached copy never
+/// goes stale. `index.html` and `config.json` are checked on every load.
+fn cache_control(path: &str) -> &'static str {
+    if path.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    }
 }
 
 fn serve_file(path: &str) -> Response<Body> {
@@ -80,4 +91,23 @@ fn serve_file(path: &str) -> Response<Body> {
             .body(Body::from("Not Found"))
             .unwrap()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn given_hashed_asset_should_be_cached_as_immutable() {
+        assert_eq!(
+            cache_control("assets/iggy-web-ui_bg-dxh8db675f38535abb6.wasm"),
+            "public, max-age=31536000, immutable"
+        );
+    }
+
+    #[test]
+    fn given_app_shell_or_config_should_be_revalidated() {
+        assert_eq!(cache_control("index.html"), "no-cache");
+        assert_eq!(cache_control("config.json"), "no-cache");
+    }
 }

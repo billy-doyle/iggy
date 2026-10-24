@@ -64,7 +64,6 @@ RELEASE_PATHS=(
   "gateways"
   "helm"
   "scripts"
-  "web"
 )
 
 # Create tar using git archive for consistent output

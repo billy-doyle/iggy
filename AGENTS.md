@@ -114,12 +114,12 @@ iggy/
 │   ├── message_bus/      In-process bus
 │   ├── shard/            Shard runtime
 │   ├── harness_derive/   #[iggy_harness] proc macro
+│   ├── web_ui/           Web UI (Dioxus, WASM, embedded by the server)
 │   └── metadata, partitions, server_common, configs_derive, clock, tools
 ├── foreign/              Java / .NET / Python / Go / C++ / Node.js SDKs
 ├── bdd/                  Cross-language BDD (Gherkin)
 ├── examples/             Per-SDK runnable examples
 ├── helm/                 Helm charts
-├── web/                  Web UI
 └── scripts/              CI + release + dev scripts
 ```
 

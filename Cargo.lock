@@ -8080,7 +8080,7 @@ dependencies = [
 
 [[package]]
 name = "iggy-web-ui"
-version = "0.1.0"
+version = "0.4.1-edge.3"
 dependencies = [
  "base64 0.23.1",
  "chrono",

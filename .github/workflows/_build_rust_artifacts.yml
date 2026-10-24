@@ -108,13 +108,21 @@ jobs:
       - name: Add Rust target
         run: rustup target add ${{ matrix.target }}
 
+      # With use_latest_ci, this file can run on a commit from before the
+      # Dioxus UI, so the build follows the UI that the commit contains.
+      - name: Build Web UI
+        if: hashFiles('core/web_ui/Cargo.toml') != ''
+        run: ./scripts/ci/install-dx.sh && ./scripts/build-web-ui.sh
+
       - name: Setup Node.js
+        if: hashFiles('core/web_ui/Cargo.toml') == '' && hashFiles('web/package.json') != ''
         uses: actions/setup-node@v7
         with:
           node-version: "22"
           package-manager-cache: false
 
-      - name: Build Web UI static files
+      - name: Build Svelte Web UI static files
+        if: hashFiles('core/web_ui/Cargo.toml') == '' && hashFiles('web/package.json') != ''
         run: npm --prefix web ci && npm --prefix web run build:static
 
       - name: Build binaries

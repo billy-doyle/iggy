@@ -44,14 +44,13 @@
     "8090": { "label": "TCP (binary)" },
     "8092": { "label": "WebSocket" }
   },
-  "postCreateCommand": "sudo chown vscode:vscode target /usr/local/cargo/registry; rustup show && npm --prefix web ci && bash /workspaces/iggy/.devcontainer/notice.sh",
+  "postCreateCommand": "sudo chown vscode:vscode target /usr/local/cargo/registry; rustup show && bash /workspaces/iggy/.devcontainer/notice.sh",
   "customizations": {
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
         "vadimcn.vscode-lldb",
-        "svelte.svelte-vscode",
         "ms-azuretools.vscode-docker"
       ],
       "settings": {
