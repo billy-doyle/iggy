@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Rendered by the nginx image's entrypoint with envsubst, which fills in PORT.
+
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+    # Behind an ingress the listen port is not the public one.
+    absolute_redirect off;
+
+    location = /healthz {
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    # Browsers ask for this whatever icon the page declares, so the miss is
+    # expected and not worth an error log line on every visit.
+    location = /favicon.ico {
+        log_not_found off;
+        access_log off;
+    }
+
+    location = / {
+        return 302 /ui/;
+    }
+
+    location = /ui {
+        return 302 /ui/;
+    }
+
+    # File names carry a content hash, so a cached copy never goes stale.
+    location /ui/assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Unknown paths are client-side routes, so they get the app shell.
+    location /ui/ {
+        add_header Cache-Control "no-cache";
+        try_files $uri /ui/index.html;
+    }
+}

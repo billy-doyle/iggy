@@ -18,6 +18,7 @@
 mod api;
 mod auth;
 mod components;
+mod config;
 mod decode;
 mod format;
 mod forms;
@@ -30,6 +31,7 @@ use dioxus::prelude::*;
 
 use crate::auth::Session;
 use crate::components::RefreshTick;
+use crate::config::RuntimeConfig;
 use crate::pages::{
     DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage, Users,
     WebUiSettings,
@@ -78,12 +80,19 @@ fn App() -> Element {
     use_context_provider(|| Signal::new(Session::restore()));
     use_context_provider(|| RefreshTick(Signal::new(0)));
     let settings = use_context_provider(|| Signal::new(UiSettings::restore()));
+    // Nothing calls the API until the base URL is known.
+    let configured = use_resource(|| async {
+        let config = RuntimeConfig::load().await;
+        api::set_api_base_url(&config.api_url);
+    });
 
     rsx! {
         document::Link { rel: "icon", r#type: "image/svg+xml", href: FAVICON }
         document::Stylesheet { href: STYLESHEET }
         div { class: "app", "data-theme": settings.read().theme.as_str(),
-            Router::<Route> {}
+            if configured.read().is_some() {
+                Router::<Route> {}
+            }
         }
     }
 }

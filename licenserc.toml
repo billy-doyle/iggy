@@ -112,6 +112,7 @@ filenames = [
     "Dockerfile.test",
     "Dockerfile.flink2_10-java21",
     "Gemfile",
+    "default.conf.template",
     "justfile",
 ]
 extensions = [
