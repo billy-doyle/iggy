@@ -203,28 +203,6 @@ jobs:
           verbose: true
           override_pr: ${{ github.event.pull_request.number }}
 
-      # Web UI
-      - name: Setup Node.js for Web UI
-        if: matrix.component == 'web-ui'
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          package-manager-cache: false
-
-      - name: Run Web UI task
-        if: matrix.component == 'web-ui'
-        run: |
-          cd web
-          npm ci
-          if [ "${{ matrix.task }}" = "lint" ]; then
-            npm run lint
-          elif [ "${{ matrix.task }}" = "test" ]; then
-            npm test
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            npm run build
-          fi
-
-      # Helm chart testing
       - name: Setup Helm test tools
         if: matrix.component == 'helm' && (matrix.task == 'validate' || matrix.task == 'smoke')
         uses: ./.github/actions/utils/setup-helm-tools

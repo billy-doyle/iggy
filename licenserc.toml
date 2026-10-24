@@ -31,7 +31,6 @@ excludes = [
     "**/.idea/**",
     "**/.vscode/**",
     "**/.gradle/**",
-    "**/.svelte-kit/**",
     "**/bin/**",
     "**/obj/**",
     "**/local_data*/**",
@@ -155,7 +154,6 @@ extensions = [
     "csproj",
     "html",
     "props",
-    "svelte",
     "xml",
 ]
 style_out = "xml"

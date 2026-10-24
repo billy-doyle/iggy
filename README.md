@@ -173,7 +173,8 @@ Iggy CLI can be installed with `cargo install iggy-cli` and then simply accessed
 
 ## Web UI
 
-There's a dedicated Web UI for the server, which allows managing the streams, topics, partitions, browsing the messages and so on. This is an ongoing effort to build a comprehensive dashboard for administrative purposes of the Iggy server. Check the Web UI in the `/web` directory. The [docker image for Web UI](https://hub.docker.com/r/apache/iggy-web-ui) is available, and can be fetched via `docker pull apache/iggy-web-ui`.
+There's a dedicated Web UI for the server, which allows managing the streams, topics, partitions, browsing the messages and so on. This is an ongoing effort to build a comprehensive dashboard for administrative purposes of the Iggy server.
+It is written in Rust with [Dioxus](https://dioxuslabs.com) and lives in `core/web_ui`. Build it with `./scripts/build-web-ui.sh` and the server serves it under `/ui` when `http.web_ui` is enabled. The [docker image for Web UI](https://hub.docker.com/r/apache/iggy-web-ui) runs it on its own, and can be fetched via `docker pull apache/iggy-web-ui`.
 
 ![Web UI](assets/web_ui.png)
 
