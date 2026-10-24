@@ -26,20 +26,32 @@ previously hashed asset into the bundle.
 
 ## Development
 
-Start a server, then serve the UI with hot reload from this directory:
+Start a server, point the UI at it, and serve the UI with hot reload:
 
 ```bash
 cargo run --bin iggy-server -- --with-default-root-credentials
 cd core/web_ui
-IGGY_WEB_UI_API_URL=http://localhost:3000 dx serve
+echo '{"api_url": "http://localhost:3000"}' > public/config.json
+dx serve
 ```
 
-Open <http://localhost:8080/ui/> and sign in as `iggy` / `iggy`.
+Open <http://localhost:8080/ui/> and sign in as `iggy` / `iggy`. Restore
+`public/config.json` before committing.
 
-`IGGY_WEB_UI_API_URL` is read at build time and prefixes every API request.
-Left unset, requests go to the origin that served the UI, which is what an
-embedded build wants. The server's default CORS settings allow any origin, so
-the dev server on another port can reach it.
+The UI reads `config.json` from the bundle root before its first API call,
+and `api_url` prefixes every request. The committed file leaves it empty, so
+requests go to the origin that served the UI. The server's default CORS
+settings allow any origin, so the dev server on another port can reach it.
+
+## Standalone image
+
+```bash
+docker build -f core/web_ui/Dockerfile -t apache/iggy-web-ui .
+docker run -p 3050:3050 -e PUBLIC_IGGY_API_URL=http://localhost:3000 apache/iggy-web-ui
+```
+
+nginx serves the bundle under `/ui` on `PORT` (3050) with a `/healthz`
+check. The start-up script writes `PUBLIC_IGGY_API_URL` into `config.json`.
 
 ## Tests
 

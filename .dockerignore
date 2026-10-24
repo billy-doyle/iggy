@@ -28,13 +28,16 @@
 # Selectively exclude scripts/ subdirs not needed in container builds.
 # scripts/ci/third-party-licenses.sh + render-node-licenses.mjs are
 # required by the convenience-binary Dockerfiles to render LICENSE-binary
-# at build time.
+# at build time. scripts/build-web-ui.sh and scripts/ci/install-dx.sh build
+# the web UI bundle for the server and web UI images.
 /scripts/dashboard
 /scripts/performance
 /scripts/*.sh
+!/scripts/build-web-ui.sh
 /scripts/ci/*
 !/scripts/ci/third-party-licenses.sh
 !/scripts/ci/render-node-licenses.mjs
+!/scripts/ci/install-dx.sh
 **/target
 /target
 !/target/debug/iggy
@@ -43,3 +46,4 @@
 !/target/debug/iggy-connectors
 /web/node_modules
 /web/dist
+/core/web_ui/dist
