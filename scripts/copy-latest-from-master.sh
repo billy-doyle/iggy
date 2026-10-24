@@ -26,7 +26,7 @@ set -euo pipefail
 #   apply   - Apply previously saved files to current working directory
 #
 # Examples:
-#   copy-latest-from-master.sh save .github scripts web/Dockerfile
+#   copy-latest-from-master.sh save .github scripts core/web_ui/Dockerfile
 #   copy-latest-from-master.sh apply
 
 COMMAND="${1:-}"

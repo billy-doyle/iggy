@@ -18,8 +18,7 @@
 
 set -Eeuo pipefail
 
-# Builds the Dioxus web UI into core/web_ui/dist. iggy-server does not embed
-# this bundle yet, the switch-over from the Svelte app will make it do so.
+# Builds the Dioxus web UI into core/web_ui/dist, where iggy-server embeds it.
 # Needs dx on PATH, see scripts/ci/install-dx.sh.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

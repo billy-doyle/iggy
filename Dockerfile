@@ -25,11 +25,11 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libhwloc-dev \
     libudev-dev \
-    nodejs \
-    npm \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY . .
-RUN npm --prefix web ci && npm --prefix web run build:static
+RUN ./scripts/ci/install-dx.sh /usr/local/bin && ./scripts/build-web-ui.sh
 RUN cargo build --bin iggy --release
 RUN cargo build --bin iggy-server -p server --release
 

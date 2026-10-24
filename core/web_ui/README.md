@@ -21,6 +21,8 @@ cargo install dioxus-cli --version 0.7.10 --locked
 ```
 
 The bundle lands in `core/web_ui/dist`, with every asset path under `/ui`.
+`iggy-server` embeds it from there at compile time, so build the bundle first
+or the server has no UI to serve.
 The script clears dx's staging directory first, because dx copies every
 previously hashed asset into the bundle.
 
