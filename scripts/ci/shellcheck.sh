@@ -65,7 +65,6 @@ EXCLUDE_PATHS=(
   "./.git/*"
   "./foreign/node/node_modules/*"
   "./foreign/python/.venv/*"
-  "./web/node_modules/*"
   "./.venv/*"
   "./venv/*"
   "./build/*"

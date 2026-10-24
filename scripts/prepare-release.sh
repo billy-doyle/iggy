@@ -65,7 +65,6 @@ RELEASE_PATHS=(
   "gateways"
   "helm"
   "scripts"
-  "web"
 )
 
 # PHP package archives exclude tests, but source releases need them.

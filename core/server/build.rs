@@ -19,8 +19,8 @@ use std::path::PathBuf;
 use std::{env, error};
 use vergen_git2::{Build, Cargo, Emitter, Git2, Rustc, Sysinfo};
 
-const WEB_ASSETS_PATH: &str = "web/build/static";
-const WEB_INDEX_FILE: &str = "web/build/static/index.html";
+const WEB_ASSETS_PATH: &str = "core/web_ui/dist/public";
+const WEB_INDEX_FILE: &str = "core/web_ui/dist/public/index.html";
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     stub_libm_for_musl();
@@ -96,7 +96,7 @@ fn verify_web_assets_if_enabled() {
     if !assets_dir.exists() || !index_file.exists() {
         println!(
             "cargo:info=Web UI assets not found at {}. \
-             To build them, run: npm --prefix web ci && npm --prefix web run build:static",
+             To build them, run: ./scripts/build-web-ui.sh",
             assets_dir.display()
         );
         return;

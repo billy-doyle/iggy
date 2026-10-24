@@ -133,7 +133,6 @@ ignore:
   - "core/harness_derive/**"
   - "bdd/**"
   - "examples/**"
-  - "web/**"
   - "**/tests/**"
   - "**/*Test.java"
   - "**/test/**"

@@ -268,16 +268,6 @@ repos:
         files: ^(foreign|examples)/node/.*\.ts$
         pass_filenames: false
 
-  # Web UI linting (Svelte + TypeScript)
-  - repo: local
-    hooks:
-      - id: web-lint
-        name: web lint
-        entry: bash -c 'cd web && { [ -x node_modules/.bin/eslint ] && [ -x node_modules/.bin/prettier ] || npm ci; } && npm run lint'
-        language: system
-        files: ^web/.*\.(ts|js|svelte)$
-        pass_filenames: false
-
   # Java SDK linting (Checkstyle + Spotless via Gradle)
   - repo: local
     hooks:
