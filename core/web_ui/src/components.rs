@@ -17,16 +17,49 @@
 
 use dioxus::prelude::*;
 
-use crate::Route;
 use crate::api::{ApiClient, ApiError};
 use crate::auth::Session;
+use crate::{LOGO_ON_DARK, LOGO_ON_LIGHT, Route};
 
 pub fn use_session() -> Signal<Option<Session>> {
     use_context()
 }
 
-pub fn api_client(session: Signal<Option<Session>>) -> ApiClient {
-    ApiClient::new(session.read().as_ref())
+/// Bumped by the refresh timer and the Refresh button.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RefreshTick(pub Signal<u64>);
+
+pub fn use_api() -> Api {
+    Api {
+        session: use_session(),
+        refresh: use_context::<RefreshTick>().0,
+    }
+}
+
+/// Builds API clients for the signed-in session.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Api {
+    session: Signal<Option<Session>>,
+    refresh: Signal<u64>,
+}
+
+impl Api {
+    /// Calling this inside a resource also subscribes the resource to the
+    /// refresh tick, which is how every page reloads its data.
+    pub fn client(&self) -> ApiClient {
+        let _tick = (self.refresh)();
+        ApiClient::tracked(self.session.read().as_ref())
+    }
+}
+
+/// Both logo variants are rendered and the stylesheet shows the one that
+/// suits the theme, so following the system theme needs no script.
+#[component]
+pub fn Logo(class: String) -> Element {
+    rsx! {
+        img { class: "{class} logo-on-dark", src: LOGO_ON_DARK, alt: "Apache Iggy" }
+        img { class: "{class} logo-on-light", src: LOGO_ON_LIGHT, alt: "Apache Iggy" }
+    }
 }
 
 /// Breadcrumbs go in `children`, buttons for the page in `actions`.

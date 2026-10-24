@@ -18,6 +18,13 @@
  */
 
 :root {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+/* The theme lives on the app wrapper so "system" can follow the OS with a
+   media query alone. The light values appear twice for the same reason. */
+.app {
   --bg: #1e1f22;
   --surface: #2b2d31;
   --surface-raised: #313338;
@@ -28,10 +35,56 @@
   --accent-hover: #5abd9c;
   --danger: #f23f43;
   color-scheme: dark;
-  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 14px;
+  min-height: 100vh;
   background: var(--bg);
   color: var(--text);
+}
+
+.app[data-theme='light'] {
+  --bg: #f2f3f5;
+  --surface: #ffffff;
+  --surface-raised: #ebedef;
+  --border: #d7d9dc;
+  --text: #1e1f22;
+  --text-muted: #5c5f66;
+  --accent: #23845f;
+  --accent-hover: #32ad84;
+  --danger: #d83236;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  .app[data-theme='system'] {
+    --bg: #f2f3f5;
+    --surface: #ffffff;
+    --surface-raised: #ebedef;
+    --border: #d7d9dc;
+    --text: #1e1f22;
+    --text-muted: #5c5f66;
+    --accent: #23845f;
+    --accent-hover: #32ad84;
+    --danger: #d83236;
+    color-scheme: light;
+  }
+}
+
+.logo-on-light,
+.app[data-theme='light'] .logo-on-dark {
+  display: none;
+}
+
+.app[data-theme='light'] .logo-on-light {
+  display: block;
+}
+
+@media (prefers-color-scheme: light) {
+  .app[data-theme='system'] .logo-on-dark {
+    display: none;
+  }
+
+  .app[data-theme='system'] .logo-on-light {
+    display: block;
+  }
 }
 
 * {
@@ -554,4 +607,59 @@ input.search {
   margin-top: 0.75rem;
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+
+.settings-section {
+  max-width: 640px;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.settings-section h2 {
+  margin: 0 0 0.75rem;
+}
+
+.settings-section p {
+  margin: 0 0 0.75rem;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.segmented button {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.segmented button:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.segmented button.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.inline-form input {
+  width: 140px;
+  margin-top: 0;
+}
+
+.inline-form button {
+  margin-left: auto;
 }

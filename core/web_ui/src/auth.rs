@@ -16,9 +16,9 @@
 // under the License.
 
 use serde::{Deserialize, Serialize};
-use web_sys::Storage;
 
 use crate::models::IdentityInfo;
+use crate::storage;
 
 const SESSION_KEY: &str = "iggy_session";
 
@@ -35,11 +35,9 @@ impl Session {
     /// Restores the stored session, dropping it if the token has expired.
     /// Blocked or unreadable storage counts as no session.
     pub fn restore() -> Option<Self> {
-        let storage = local_storage()?;
-        let stored = storage.get_item(SESSION_KEY).ok()??;
-        let session: Self = serde_json::from_str(&stored).ok()?;
+        let session: Self = storage::read(SESSION_KEY)?;
         if session.is_expired() {
-            let _ = storage.remove_item(SESSION_KEY);
+            storage::remove(SESSION_KEY);
             return None;
         }
         Some(session)
@@ -47,25 +45,15 @@ impl Session {
 
     pub fn persist(&self) {
         // A failed write only costs the user a sign-in after the next reload.
-        let (Some(storage), Ok(json)) = (local_storage(), serde_json::to_string(self)) else {
-            return;
-        };
-        let _ = storage.set_item(SESSION_KEY, &json);
+        storage::write(SESSION_KEY, self);
     }
 
     /// Removes this session from storage. Tabs share the stored session, so
     /// one that another tab saved after signing in again is left alone.
     pub fn forget(&self) {
-        let Some(storage) = local_storage() else {
-            return;
-        };
-        let stored = storage
-            .get_item(SESSION_KEY)
-            .ok()
-            .flatten()
-            .and_then(|stored| serde_json::from_str::<Self>(&stored).ok());
+        let stored = storage::read::<Self>(SESSION_KEY);
         if stored.is_none_or(|stored| stored.access_token == self.access_token) {
-            let _ = storage.remove_item(SESSION_KEY);
+            storage::remove(SESSION_KEY);
         }
     }
 
@@ -83,10 +71,4 @@ impl From<IdentityInfo> for Session {
             expiry: identity.access_token.expiry,
         }
     }
-}
-
-/// `None` when the browser blocks site storage, where reading
-/// `window.localStorage` throws.
-fn local_storage() -> Option<Storage> {
-    web_sys::window()?.local_storage().ok().flatten()
 }
