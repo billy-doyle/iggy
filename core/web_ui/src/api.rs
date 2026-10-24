@@ -17,6 +17,7 @@
 
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -30,13 +31,14 @@ use crate::models::{
     UserInfoDetails, UserUpdate,
 };
 
-/// Empty by default so requests go to the server that served the UI. Set at
-/// build time to point `dx serve` at a separately running server, see the
-/// crate README.
-const API_BASE_URL: &str = match option_env!("IGGY_WEB_UI_API_URL") {
-    Some(url) => url,
-    None => "",
-};
+/// Set once at start-up from `config.json`. Unset or empty means the server
+/// that served the UI, which is how the embedded UI reaches its API.
+static API_BASE_URL: OnceLock<String> = OnceLock::new();
+
+pub fn set_api_base_url(url: &str) {
+    // Only the first call wins, and start-up makes exactly one.
+    let _ = API_BASE_URL.set(url.trim_end_matches('/').to_owned());
+}
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum ApiError {
@@ -311,7 +313,8 @@ impl Drop for InFlight {
 }
 
 fn url(path: &str) -> String {
-    format!("{API_BASE_URL}{path}")
+    let base = API_BASE_URL.get().map_or("", String::as_str);
+    format!("{base}{path}")
 }
 
 /// Reads the body as bytes, because `Response::json` goes through one JS
