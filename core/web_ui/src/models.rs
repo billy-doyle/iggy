@@ -268,6 +268,37 @@ pub struct Message {
     pub header: MessageHeader,
     /// Standard padded base64.
     pub payload: String,
+    #[serde(default)]
+    pub user_headers: UserHeaders,
+}
+
+/// The server sends parsed header entries, or the raw header bytes as base64
+/// when they do not parse.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum UserHeaders {
+    Entries(Vec<HeaderEntry>),
+    Raw(String),
+}
+
+impl Default for UserHeaders {
+    fn default() -> Self {
+        Self::Entries(Vec::new())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct HeaderEntry {
+    pub key: HeaderField,
+    pub value: HeaderField,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct HeaderField {
+    /// A `HeaderKind` in snake case, such as `uint32`.
+    pub kind: String,
+    /// Standard padded base64.
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]

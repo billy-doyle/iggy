@@ -8086,6 +8086,7 @@ dependencies = [
  "gloo-net 0.7.0",
  "gloo-storage 0.4.0",
  "js-sys",
+ "roxmltree",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

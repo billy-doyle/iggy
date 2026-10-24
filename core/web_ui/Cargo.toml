@@ -33,6 +33,7 @@ dioxus = { workspace = true }
 gloo-net = { workspace = true }
 gloo-storage = { workspace = true }
 js-sys = { workspace = true }
+roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

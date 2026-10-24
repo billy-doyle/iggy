@@ -23,6 +23,8 @@ use crate::components::{Crumb, ErrorView, Loading, PageHeader, api_client, use_s
 use crate::format;
 use crate::models::Message;
 
+use super::inspector::MessageInspector;
+
 const PAGE_SIZE: u32 = 20;
 const PAYLOAD_PREVIEW_CHARS: usize = 60;
 
@@ -40,6 +42,7 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32) -> Element {
     let session = use_session();
     // `None` follows the newest page, so reloading picks up new messages.
     let mut requested_offset = use_signal(|| None::<u64>);
+    let mut inspecting = use_signal(|| None::<Message>);
 
     let page = use_resource(use_reactive!(
         |(stream_id, topic_id, partition_id)| async move {
@@ -95,7 +98,7 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32) -> Element {
             rsx! {
                 div { class: "pager",
                     span { class: "muted",
-                        "Topic {page.topic_name}, showing offsets {first_offset} to {shown_last_offset} of {last_offset}"
+                        "Topic {page.topic_name}, showing offsets {first_offset} to {shown_last_offset}, newest is {last_offset}"
                     }
                     button {
                         class: "secondary",
@@ -119,11 +122,16 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32) -> Element {
                             th { "ID" }
                             th { class: "num", "Bytes" }
                             th { "Payload" }
+                            th {}
                         }
                     }
                     tbody {
                         for message in page.messages.iter().rev() {
-                            MessageRow { key: "{message.header.offset}", message: message.clone() }
+                            MessageRow {
+                                key: "{message.header.offset}",
+                                message: message.clone(),
+                                on_inspect: move |message| inspecting.set(Some(message)),
+                            }
                         }
                     }
                 }
@@ -134,11 +142,14 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32) -> Element {
     rsx! {
         {header}
         {body}
+        if let Some(message) = inspecting() {
+            MessageInspector { message, on_close: move |_| inspecting.set(None) }
+        }
     }
 }
 
 #[component]
-fn MessageRow(message: Message) -> Element {
+fn MessageRow(message: Message, on_inspect: EventHandler<Message>) -> Element {
     let payload = format::payload(&message.payload);
     let preview = format::truncate(&payload, PAYLOAD_PREVIEW_CHARS);
     let header = &message.header;
@@ -149,10 +160,12 @@ fn MessageRow(message: Message) -> Element {
             td { {format::timestamp_precise(header.timestamp)} }
             td { class: "mono", {format::message_id(header.id)} }
             td { class: "num", "{header.payload_length}" }
-            td {
-                details {
-                    summary { class: "mono", "{preview}" }
-                    pre { "{payload}" }
+            td { class: "mono", "{preview}" }
+            td { class: "num",
+                button {
+                    class: "secondary small",
+                    onclick: move |_| on_inspect.call(message.clone()),
+                    "Inspect"
                 }
             }
         }
