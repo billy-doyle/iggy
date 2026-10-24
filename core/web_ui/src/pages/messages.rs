@@ -21,7 +21,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::api::ApiError;
-use crate::components::{Crumb, ErrorView, Loading, PageHeader, api_client, use_session};
+use crate::components::{Crumb, ErrorView, Loading, PageHeader, use_api};
 use crate::format;
 use crate::models::IggyMessage;
 
@@ -46,7 +46,7 @@ struct MessagesPage {
 /// so reloading picks up new messages.
 #[component]
 pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option<u64>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let navigator = navigator();
     let mut inspecting = use_signal(|| None::<Rc<IggyMessage>>);
 
@@ -56,7 +56,7 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
         partition_id,
         offset,
     )| async move {
-        let client = api_client(session);
+        let client = api.client();
         let topic = client.topic(stream_id, topic_id).await?;
         let partition = topic
             .partitions
