@@ -24,6 +24,7 @@
 //! into each mirror, so a renamed field fails on the host.
 
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +44,66 @@ pub struct IdentityInfo {
 pub struct TokenInfo {
     pub token: String,
     pub expiry: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct UserInfo {
+    pub id: u32,
+    pub created_at: u64,
+    pub status: UserStatus,
+    pub username: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UserStatus {
+    Active,
+    Inactive,
+}
+
+impl UserStatus {
+    pub const ALL: [Self; 2] = [Self::Active, Self::Inactive];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Inactive => "inactive",
+        }
+    }
+}
+
+impl FromStr for UserStatus {
+    type Err = UnknownUserStatus;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|status| status.as_str() == text)
+            .ok_or_else(|| UnknownUserStatus(text.to_owned()))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown user status {0}")]
+pub struct UnknownUserStatus(String);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateUser {
+    pub username: String,
+    pub password: String,
+    pub status: UserStatus,
+    /// Built by [`crate::permissions::PermissionsDraft::to_json`].
+    pub permissions: serde_json::Value,
+}
+
+/// A sparse `PUT /users/{id}` body, which the server reads as
+/// `iggy_common::OptionsUpdate`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct UserUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<UserStatus>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -230,9 +291,11 @@ mod tests {
     use base64::engine::general_purpose::STANDARD;
     use iggy_common::{
         HeaderKey, HeaderValue, IggyByteSize, IggyDuration, IggyTimestamp, OptionKey,
-        PartitionContext, UserStatus,
+        PartitionContext,
     };
     use serde::de::DeserializeOwned;
+
+    use crate::permissions::{PermissionsDraft, STREAM_FLAGS, TOPIC_FLAGS};
 
     use super::*;
 
@@ -269,7 +332,7 @@ mod tests {
         let server = iggy_common::UserInfoDetails {
             id: 1,
             created_at: IggyTimestamp::from(CREATED_AT),
-            status: UserStatus::Active,
+            status: iggy_common::UserStatus::Active,
             username: "iggy".to_owned(),
             permissions: None,
             options: Default::default(),
@@ -486,6 +549,76 @@ mod tests {
             partitions_count: 2,
         });
         assert_eq!(server.partitions_count, 2);
+    }
+
+    #[test]
+    fn given_server_users_should_decode_user_list() {
+        let server = vec![iggy_common::UserInfo {
+            id: 2,
+            created_at: IggyTimestamp::from(CREATED_AT),
+            status: iggy_common::UserStatus::Inactive,
+            username: "reader".to_owned(),
+            options: Default::default(),
+        }];
+        let mirror: Vec<UserInfo> = decode(&server);
+        assert_eq!(
+            mirror,
+            [UserInfo {
+                id: 2,
+                created_at: CREATED_AT,
+                status: UserStatus::Inactive,
+                username: "reader".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn given_ui_create_user_should_decode_as_server_create_user() {
+        let mut draft = PermissionsDraft::default();
+        draft.set_global("manage_servers", true);
+        draft.set_stream(1, STREAM_FLAGS[0].key, true);
+        draft.set_topic(1, 2, TOPIC_FLAGS[0].key, true);
+        let mirror = CreateUser {
+            username: "reader".to_owned(),
+            password: "secret123".to_owned(),
+            status: UserStatus::Active,
+            permissions: draft.to_json(),
+        };
+        let server: iggy_common::create_user::CreateUser = decode(&mirror);
+        assert_eq!(server.username, "reader");
+        assert_eq!(server.status, iggy_common::UserStatus::Active);
+        assert_eq!(
+            serde_json::to_value(&server.permissions).expect("serializable"),
+            draft.to_json(),
+            "the server reads every permission flag the form sends"
+        );
+    }
+
+    #[test]
+    fn given_ui_user_update_should_decode_as_server_options_update() {
+        let mirror = UserUpdate {
+            username: Some("renamed".to_owned()),
+            status: Some(UserStatus::Inactive),
+        };
+        let server: iggy_common::OptionsUpdate = decode(&mirror);
+        assert_eq!(
+            server.set.keys().collect::<Vec<_>>(),
+            ["status", "username"]
+        );
+        server
+            .to_patch()
+            .expect("the server accepts the user update the form sends");
+    }
+
+    #[test]
+    fn given_status_name_should_round_trip() {
+        for status in UserStatus::ALL {
+            assert_eq!(status.as_str().parse(), Ok(status));
+        }
+        assert_eq!(
+            "banned".parse::<UserStatus>(),
+            Err(UnknownUserStatus("banned".to_owned()))
+        );
     }
 
     fn server_topic() -> iggy_common::Topic {

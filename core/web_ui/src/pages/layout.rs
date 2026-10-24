@@ -64,6 +64,7 @@ pub fn DashboardLayout() -> Element {
                 nav {
                     Link { class: "nav-link", active_class: "active", to: Route::Overview {}, "Overview" }
                     Link { class: "nav-link", active_class: "active", to: Route::Streams {}, "Streams" }
+                    Link { class: "nav-link", active_class: "active", to: Route::Users {}, "Users" }
                 }
                 div { class: "sidebar-footer",
                     span { class: "muted", "{username}" }
