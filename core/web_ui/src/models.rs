@@ -275,18 +275,53 @@ pub struct IggyMessage {
     pub header: IggyMessageHeader,
     /// Standard padded base64.
     pub payload: String,
+    #[serde(default)]
+    pub user_headers: UserHeaders,
+}
+
+/// The server sends parsed header entries, or the raw header bytes as base64
+/// when they do not parse.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum UserHeaders {
+    Entries(Vec<HeaderEntry>),
+    Raw(String),
+}
+
+impl Default for UserHeaders {
+    fn default() -> Self {
+        Self::Entries(Vec::new())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct HeaderEntry {
+    pub key: HeaderField,
+    pub value: HeaderField,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct HeaderField {
+    /// A `HeaderKind` in snake case, such as `uint32`.
+    pub kind: String,
+    /// Standard padded base64.
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct IggyMessageHeader {
+    pub checksum: u64,
     pub id: u128,
     pub offset: u64,
     pub timestamp: u64,
+    pub origin_timestamp: u64,
     pub payload_length: u32,
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
+    use std::str::FromStr;
+
     use base64::Engine;
     use base64::engine::general_purpose::STANDARD;
     use iggy_common::{
@@ -430,13 +465,20 @@ mod tests {
 
     #[test]
     fn given_server_polled_messages_should_decode_payload_and_header() {
+        let user_headers = BTreeMap::from([(
+            HeaderKey::from_str("codec").expect("valid key"),
+            HeaderValue::from_str("json").expect("valid value"),
+        )]);
         let mut message = iggy_common::IggyMessage::builder()
             .id(42)
             .payload("hello".into())
+            .user_headers(user_headers)
             .build()
             .expect("valid message");
+        message.header.checksum = 7;
         message.header.offset = 5;
         message.header.timestamp = CREATED_AT;
+        message.header.origin_timestamp = CREATED_AT - 1;
         let mut server = iggy_common::PolledMessages::empty();
         server.current_offset = 9;
         server.count = 1;
@@ -448,12 +490,24 @@ mod tests {
             mirror.messages,
             [IggyMessage {
                 header: IggyMessageHeader {
+                    checksum: 7,
                     id: 42,
                     offset: 5,
                     timestamp: CREATED_AT,
+                    origin_timestamp: CREATED_AT - 1,
                     payload_length: 5,
                 },
                 payload: STANDARD.encode("hello"),
+                user_headers: UserHeaders::Entries(vec![HeaderEntry {
+                    key: HeaderField {
+                        kind: "string".to_owned(),
+                        value: STANDARD.encode("codec"),
+                    },
+                    value: HeaderField {
+                        kind: "string".to_owned(),
+                        value: STANDARD.encode("json"),
+                    },
+                }]),
             }]
         );
     }

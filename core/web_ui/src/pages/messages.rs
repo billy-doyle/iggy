@@ -25,6 +25,8 @@ use crate::components::{Crumb, ErrorView, Loading, PageHeader, api_client, use_s
 use crate::format;
 use crate::models::IggyMessage;
 
+use super::inspector::MessageInspector;
+
 const PAGE_SIZE: u32 = 20;
 const PAYLOAD_PREVIEW_CHARS: usize = 60;
 
@@ -46,6 +48,7 @@ struct MessagesPage {
 pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option<u64>) -> Element {
     let session = use_session();
     let navigator = navigator();
+    let mut inspecting = use_signal(|| None::<Rc<IggyMessage>>);
 
     let mut page = use_resource(use_reactive!(|(
         stream_id,
@@ -125,7 +128,7 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
                 rsx! {
                     div { class: "pager",
                         span { class: "muted",
-                            "Topic {loaded.topic_name}, showing offsets {first_offset} to {shown_last_offset} of {current_offset}"
+                            "Topic {loaded.topic_name}, showing offsets {first_offset} to {shown_last_offset}, newest is {current_offset}"
                         }
                         button {
                             class: "secondary",
@@ -149,11 +152,16 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
                                 th { "ID" }
                                 th { class: "num", "Bytes" }
                                 th { "Payload" }
+                                th {}
                             }
                         }
                         tbody {
                             for message in loaded.messages.iter().rev() {
-                                MessageRow { key: "{message.header.offset}", message: Rc::clone(message) }
+                                MessageRow {
+                                    key: "{message.header.offset}",
+                                    message: Rc::clone(message),
+                                    on_inspect: move |message| inspecting.set(Some(message)),
+                                }
                             }
                         }
                     }
@@ -176,14 +184,16 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
     rsx! {
         {header}
         {body}
+        if let Some(message) = inspecting() {
+            MessageInspector { message, on_close: move |_| inspecting.set(None) }
+        }
     }
 }
 
 #[component]
-fn MessageRow(message: Rc<IggyMessage>) -> Element {
-    // The full payload can be up to 64 MB, so it is decoded only once the
-    // row is opened.
-    let mut open = use_signal(|| false);
+fn MessageRow(message: Rc<IggyMessage>, on_inspect: EventHandler<Rc<IggyMessage>>) -> Element {
+    // The full payload can be up to 64 MB, so the row decodes only a preview
+    // and the inspector decodes the rest.
     let preview = format::payload_preview(&message.payload, PAYLOAD_PREVIEW_CHARS);
     let header = &message.header;
 
@@ -193,12 +203,12 @@ fn MessageRow(message: Rc<IggyMessage>) -> Element {
             td { {format::timestamp_precise(header.timestamp)} }
             td { class: "mono", {format::message_id(header.id)} }
             td { class: "num", "{header.payload_length}" }
-            td {
-                details { ontoggle: move |_| open.toggle(),
-                    summary { class: "mono", "{preview}" }
-                    if open() {
-                        pre { {format::payload(&message.payload)} }
-                    }
+            td { class: "mono", "{preview}" }
+            td { class: "num",
+                button {
+                    class: "secondary small",
+                    onclick: move |_| on_inspect.call(Rc::clone(&message)),
+                    "Inspect"
                 }
             }
         }

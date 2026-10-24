@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+mod inspector;
 mod layout;
 mod messages;
 mod not_found;
