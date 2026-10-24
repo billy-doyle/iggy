@@ -116,6 +116,8 @@ pub struct StreamDetails {
     pub messages_count: u64,
     pub topics_count: u32,
     pub topics: Vec<Topic>,
+    #[serde(default)]
+    pub options: ResourceOptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -141,6 +143,51 @@ pub struct TopicDetails {
     pub partitions: Vec<Partition>,
     #[serde(default)]
     pub options: ResourceOptions,
+}
+
+/// Option values in requests use the text a config file accepts, such as
+/// `"7 days"` or `"1 GiB"`, and the server parses them.
+pub type OptionInputs = BTreeMap<String, String>;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateStream {
+    pub name: String,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub options: OptionInputs,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateTopic {
+    pub name: String,
+    pub partitions_count: u32,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub options: OptionInputs,
+}
+
+/// A sparse `PUT` body: absent fields stay as they are, and `reset` returns
+/// options to the server default.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct TopicUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_expiry: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_topic_size: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub reset: Vec<String>,
+}
+
+impl TopicUpdate {
+    /// The server refuses an update that changes nothing.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct PartitionsCount {
+    pub partitions_count: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
