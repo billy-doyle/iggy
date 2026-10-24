@@ -18,9 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{
-    ConfirmDelete, DangerZone, FormActions, Modal, api_client, focus_on_mount, use_session,
-};
+use crate::components::{ConfirmDelete, DangerZone, FormActions, Modal, focus_on_mount, use_api};
 use crate::format;
 use crate::models::{CreateTopic, ResourceOptions, TopicUpdate};
 
@@ -41,7 +39,7 @@ pub fn NewTopicForm(
     on_close: EventHandler<()>,
     on_created: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut name = use_signal(String::new);
     let mut partitions = use_signal(|| "1".to_owned());
     let mut compression = use_signal(|| "none".to_owned());
@@ -84,10 +82,10 @@ pub fn NewTopicForm(
             ]),
         };
         let created = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).create_topic(stream_id, &topic),
+            api.client().create_topic(stream_id, &topic),
         )
         .await;
         if created.is_some() {
@@ -165,7 +163,7 @@ pub fn TopicSettingsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let navigator = navigator();
     // Taken once at mount, so a refreshed topic cannot make an untouched
     // field look edited and revert someone else's change.
@@ -211,10 +209,10 @@ pub fn TopicSettingsForm(
             return;
         }
         let saved = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).update_topic(stream_id, topic_id, &update),
+            api.client().update_topic(stream_id, topic_id, &update),
         )
         .await;
         if saved.is_some() {
@@ -224,10 +222,10 @@ pub fn TopicSettingsForm(
 
     let delete = move |_| async move {
         let deleted = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).delete_topic(stream_id, topic_id),
+            api.client().delete_topic(stream_id, topic_id),
         )
         .await;
         if deleted.is_some() {
@@ -321,7 +319,7 @@ pub fn AddPartitionsForm(
     on_saved: EventHandler<()>,
     on_failed: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut count = use_signal(|| "1".to_owned());
     let busy = use_signal(|| false);
     let mut error = use_signal(|| None::<String>);
@@ -336,10 +334,10 @@ pub fn AddPartitionsForm(
             }
         };
         let added = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).create_partitions(stream_id, topic_id, to_add),
+            api.client().create_partitions(stream_id, topic_id, to_add),
         )
         .await;
         if added.is_some() {
@@ -388,7 +386,7 @@ pub fn DeletePartitionsForm(
     on_saved: EventHandler<()>,
     on_failed: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut count = use_signal(|| "1".to_owned());
     let mut confirmed_count = use_signal(|| None::<u32>);
     let busy = use_signal(|| false);
@@ -399,10 +397,11 @@ pub fn DeletePartitionsForm(
             return;
         };
         let deleted = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).delete_partitions(stream_id, topic_id, to_delete),
+            api.client()
+                .delete_partitions(stream_id, topic_id, to_delete),
         )
         .await;
         if deleted.is_some() {

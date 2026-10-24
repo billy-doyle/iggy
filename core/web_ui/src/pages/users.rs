@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::api::ApiError;
-use crate::components::{ErrorView, Loading, PageHeader, api_client, use_session};
+use crate::components::{ErrorView, Loading, PageHeader, use_api};
 use crate::format;
 use crate::forms::{EditUserForm, NewUserForm};
 use crate::models::{ROOT_USER_ID, UserInfo, UserStatus};
@@ -31,11 +31,12 @@ enum UserDialog {
 
 #[component]
 pub fn Users() -> Element {
-    let mut session = use_session();
+    let api = use_api();
+    let mut session = api.session();
     let mut search = use_signal(String::new);
     let mut dialog = use_signal(|| None::<UserDialog>);
     let mut users = use_resource(move || async move {
-        let mut users = api_client(session).users().await?;
+        let mut users = api.client().users().await?;
         users.sort_by_key(|user| user.id);
         Ok::<_, ApiError>(users)
     });
@@ -47,8 +48,8 @@ pub fn Users() -> Element {
         );
         dialog.set(None);
         users.restart();
-        // The sidebar's username comes from a resource that depends only on
-        // the session, so rewriting the session reloads it after a self-rename.
+        // A save does not reload the sidebar's username, so rewriting the
+        // session reloads it at once after a self-rename.
         if edited_self {
             session.write();
         }

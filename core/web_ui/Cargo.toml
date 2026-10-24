@@ -31,6 +31,7 @@ base64 = { workspace = true }
 chrono = { workspace = true }
 dioxus = { workspace = true }
 gloo-net = { workspace = true }
+gloo-timers = { workspace = true }
 js-sys = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }

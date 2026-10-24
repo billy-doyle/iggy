@@ -17,7 +17,7 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{FormActions, Modal, api_client, focus_on_mount, use_session};
+use crate::components::{FormActions, Modal, focus_on_mount, use_api};
 use crate::models::{CreateUser, ROOT_USER_ID, UserInfo, UserStatus, UserUpdate};
 use crate::permissions::PermissionsDraft;
 
@@ -26,7 +26,7 @@ use super::{Password, Username, run_request};
 
 #[component]
 pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut username = use_signal(String::new);
     let mut password = use_signal(String::new);
     let status = use_signal(|| UserStatus::Active);
@@ -61,7 +61,7 @@ pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> 
             permissions: draft.read().to_json(),
         };
         let created =
-            run_request(session, busy, error, api_client(session).create_user(&user)).await;
+            run_request(api.session(), busy, error, api.client().create_user(&user)).await;
         if created.is_some() {
             on_created.call(());
         }
@@ -111,7 +111,7 @@ pub fn EditUserForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let user_id = user.id;
     // Taken once at mount, so a refreshed `user` cannot make an untouched
     // field look edited and revert someone else's change.
@@ -140,10 +140,10 @@ pub fn EditUserForm(
             return;
         }
         let saved = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).update_user(user_id, &update),
+            api.client().update_user(user_id, &update),
         )
         .await;
         if saved.is_some() {

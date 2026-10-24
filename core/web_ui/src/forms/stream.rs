@@ -18,9 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{
-    ConfirmDelete, DangerZone, FormActions, Modal, api_client, focus_on_mount, use_session,
-};
+use crate::components::{ConfirmDelete, DangerZone, FormActions, Modal, focus_on_mount, use_api};
 use crate::format;
 use crate::models::{CreateStream, ResourceOptions};
 
@@ -28,7 +26,7 @@ use super::{ResourceName, non_blank_options, run_request};
 
 #[component]
 pub fn NewStreamForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut name = use_signal(String::new);
     let mut encryption_key = use_signal(String::new);
     let busy = use_signal(|| false);
@@ -48,10 +46,10 @@ pub fn NewStreamForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -
             options: non_blank_options([("encryption_key", encryption_key())]),
         };
         let created = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).create_stream(&stream),
+            api.client().create_stream(&stream),
         )
         .await;
         if created.is_some() {
@@ -100,7 +98,7 @@ pub fn StreamSettingsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let navigator = navigator();
     // Taken once at mount, so a refreshed `stream_name` cannot make the
     // untouched name look edited and revert someone else's rename.
@@ -124,10 +122,10 @@ pub fn StreamSettingsForm(
             return;
         }
         let renamed = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).rename_stream(stream_id, &next_name),
+            api.client().rename_stream(stream_id, &next_name),
         )
         .await;
         if renamed.is_some() {
@@ -137,10 +135,10 @@ pub fn StreamSettingsForm(
 
     let delete = move |_| async move {
         let deleted = run_request(
-            session,
+            api.session(),
             busy,
             error,
-            api_client(session).delete_stream(stream_id),
+            api.client().delete_stream(stream_id),
         )
         .await;
         if deleted.is_some() {
