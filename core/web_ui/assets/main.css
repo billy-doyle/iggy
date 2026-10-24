@@ -332,17 +332,6 @@ details summary {
   cursor: pointer;
 }
 
-details pre {
-  max-height: 320px;
-  margin: 0.5rem 0 0;
-  padding: 0.75rem;
-  overflow: auto;
-  border-radius: 6px;
-  background: var(--bg);
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -501,4 +490,68 @@ button.small {
 input.search {
   width: 200px;
   margin-top: 0;
+}
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.inspector h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.inspector pre {
+  max-height: 360px;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.headers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.headers .kinds {
+  margin-left: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.payload-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.payload-toolbar h3 {
+  margin: 0;
+}
+
+.payload-toolbar select {
+  width: auto;
+  margin-top: 0;
+}
+
+.payload .error-box,
+.payload > p {
+  margin-top: 0.5rem;
+}
+
+.payload details {
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
