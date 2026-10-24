@@ -5928,6 +5928,7 @@ dependencies = [
  "gloo-net 0.8.0",
  "iggy_common",
  "js-sys",
+ "roxmltree",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
