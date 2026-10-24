@@ -17,14 +17,14 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{ErrorView, Loading, PageHeader, Stat, api_client, use_session};
+use crate::components::{ErrorView, Loading, PageHeader, Stat, use_api};
 use crate::format;
 use crate::models::Stats;
 
 #[component]
 pub fn Overview() -> Element {
-    let session = use_session();
-    let stats = use_resource(move || async move { api_client(session).stats().await });
+    let api = use_api();
+    let stats = use_resource(move || async move { api.client().stats().await });
 
     let body = match &*stats.read() {
         None => rsx! { Loading {} },

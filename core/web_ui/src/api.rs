@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -55,16 +58,37 @@ pub enum ApiError {
     Decode(String),
 }
 
+thread_local! {
+    static REQUESTS_IN_FLIGHT: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Counts the clients from `ApiClient::tracked` that are still alive. The
+/// refresh timer waits for zero, so a tick never cancels a slow reload.
+pub fn requests_in_flight() -> u32 {
+    REQUESTS_IN_FLIGHT.get()
+}
+
 /// Thin client for the server's HTTP API, scoped to one session.
 #[derive(Debug, Clone, Default)]
 pub struct ApiClient {
     access_token: Option<String>,
+    _in_flight: Option<Rc<InFlight>>,
 }
 
 impl ApiClient {
     pub fn new(session: Option<&Session>) -> Self {
         Self {
             access_token: session.map(|session| session.access_token.clone()),
+            _in_flight: None,
+        }
+    }
+
+    /// A client that counts as in flight until it is dropped, which also
+    /// covers a request whose resource was cancelled.
+    pub fn tracked(session: Option<&Session>) -> Self {
+        Self {
+            _in_flight: Some(Rc::new(InFlight::start())),
+            ..Self::new(session)
         }
     }
 
@@ -259,6 +283,22 @@ impl ApiClient {
             Some(token) => builder.header("Authorization", &format!("Bearer {token}")),
             None => builder,
         }
+    }
+}
+
+#[derive(Debug)]
+struct InFlight;
+
+impl InFlight {
+    fn start() -> Self {
+        REQUESTS_IN_FLIGHT.set(REQUESTS_IN_FLIGHT.get() + 1);
+        Self
+    }
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        REQUESTS_IN_FLIGHT.set(REQUESTS_IN_FLIGHT.get() - 1);
     }
 }
 

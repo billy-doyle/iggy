@@ -18,7 +18,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{ConfirmDelete, FormActions, Modal, api_client, use_session};
+use crate::components::{ConfirmDelete, FormActions, Modal, use_api};
 use crate::format;
 use crate::models::{CreateStream, StreamDetails};
 
@@ -26,7 +26,7 @@ use super::non_blank_options;
 
 #[component]
 pub fn NewStreamForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> Element {
-    let session = use_session();
+    let api = use_api();
     let mut name = use_signal(String::new);
     let mut encryption_key = use_signal(String::new);
     let mut busy = use_signal(|| false);
@@ -39,7 +39,7 @@ pub fn NewStreamForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -
             name: name().trim().to_owned(),
             options: non_blank_options([("encryption_key", encryption_key())]),
         };
-        let result = api_client(session).create_stream(&stream).await;
+        let result = api.client().create_stream(&stream).await;
         busy.set(false);
         match result {
             Ok(_) => on_created.call(()),
@@ -86,7 +86,7 @@ pub fn StreamSettingsForm(
     on_close: EventHandler<()>,
     on_saved: EventHandler<()>,
 ) -> Element {
-    let session = use_session();
+    let api = use_api();
     let navigator = navigator();
     let stream_id = stream.id;
     // Taken once at mount, so a refreshed `stream` cannot make the untouched
@@ -107,9 +107,7 @@ pub fn StreamSettingsForm(
                 return;
             }
             busy.set(true);
-            let result = api_client(session)
-                .rename_stream(stream_id, &next_name)
-                .await;
+            let result = api.client().rename_stream(stream_id, &next_name).await;
             busy.set(false);
             match result {
                 Ok(()) => on_saved.call(()),
@@ -120,7 +118,7 @@ pub fn StreamSettingsForm(
 
     let delete = move |_| async move {
         busy.set(true);
-        let result = api_client(session).delete_stream(stream_id).await;
+        let result = api.client().delete_stream(stream_id).await;
         busy.set(false);
         match result {
             Ok(()) => {
