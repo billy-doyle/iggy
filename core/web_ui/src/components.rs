@@ -19,11 +19,17 @@ use dioxus::prelude::*;
 
 use crate::api::{ApiClient, ApiError};
 use crate::auth::Session;
+use crate::models::UserInfoDetails;
 use crate::{LOGO_ON_DARK, LOGO_ON_LIGHT, Route};
 
 pub fn use_session() -> Signal<Option<Session>> {
     use_context()
 }
+
+/// The signed-in user's details, loaded by the dashboard layout. `None`
+/// while loading, `Some(None)` when they could not be read.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CurrentUser(pub Resource<Option<UserInfoDetails>>);
 
 /// Bumped by the refresh timer and the Refresh button.
 #[derive(Debug, Clone, Copy, PartialEq)]
