@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+mod changes;
 mod inspector;
 mod layout;
 mod messages;
@@ -26,6 +27,7 @@ mod streams;
 mod topic;
 mod users;
 
+pub use changes::Changes;
 pub use layout::DashboardLayout;
 pub use messages::Messages;
 pub use not_found::NotFound;

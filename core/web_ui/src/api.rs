@@ -23,6 +23,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::auth::Session;
+use crate::changes::MetadataChanges;
 use crate::models::{
     CreatePartitions, CreateStream, CreateTopic, CreateUser, IdentityInfo, LoginUser,
     PolledMessages, Stats, Stream, StreamDetails, TopicDetails, TopicUpdate, UserInfo,
@@ -121,6 +122,13 @@ impl ApiClient {
 
     pub async fn user(&self, user_id: u32) -> Result<UserInfoDetails, ApiError> {
         self.get(&format!("/users/{user_id}"), &[]).await
+    }
+
+    pub async fn metadata_changes(
+        &self,
+        query: &[(&str, String)],
+    ) -> Result<MetadataChanges, ApiError> {
+        self.get("/metadata/changes", query).await
     }
 
     pub async fn stats(&self) -> Result<Stats, ApiError> {
