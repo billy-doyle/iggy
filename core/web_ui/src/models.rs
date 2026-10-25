@@ -106,9 +106,39 @@ pub struct UserUpdate {
     pub status: Option<UserStatus>,
 }
 
+/// The server's built-in root user always has this ID.
+pub const ROOT_USER_ID: u32 = 0;
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct UserInfoDetails {
+    pub id: u32,
     pub username: String,
+    #[serde(default)]
+    pub permissions: Option<Permissions>,
+}
+
+impl UserInfoDetails {
+    /// Root and holders of the global `manage_servers` permission may read
+    /// the metadata change log.
+    pub fn can_read_metadata_changes(&self) -> bool {
+        self.id == ROOT_USER_ID
+            || self
+                .permissions
+                .as_ref()
+                .is_some_and(|permissions| permissions.global.manage_servers)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Permissions {
+    pub global: GlobalPermissions,
+}
+
+/// Only the flags the UI checks.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct GlobalPermissions {
+    #[serde(default)]
+    pub manage_servers: bool,
 }
 
 /// `GET /stats`. Byte sizes arrive as exact-unit strings such as
@@ -330,6 +360,7 @@ mod tests {
     };
     use serde::de::DeserializeOwned;
 
+    use crate::changes::{MetadataChangeStatus, MetadataChanges, Position};
     use crate::permissions::{PermissionsDraft, STREAM_FLAGS, TOPIC_FLAGS};
 
     use super::*;
@@ -369,11 +400,18 @@ mod tests {
             created_at: IggyTimestamp::from(CREATED_AT),
             status: iggy_common::UserStatus::Active,
             username: "iggy".to_owned(),
-            permissions: None,
+            permissions: Some(iggy_common::Permissions {
+                global: iggy_common::GlobalPermissions {
+                    manage_servers: true,
+                    ..Default::default()
+                },
+                streams: None,
+            }),
             options: Default::default(),
         };
         let mirror: UserInfoDetails = decode(&server);
-        assert_eq!(mirror.username, "iggy");
+        assert_eq!((mirror.id, mirror.username.as_str()), (1, "iggy"));
+        assert!(mirror.can_read_metadata_changes());
     }
 
     #[test]
@@ -673,6 +711,66 @@ mod tests {
             "banned".parse::<UserStatus>(),
             Err(UnknownUserStatus("banned".to_owned()))
         );
+    }
+
+    #[test]
+    fn given_server_change_page_should_decode_metadata_changes() {
+        let log_id = 0x0d4b_8f2a_6e1c_93d7;
+        let cursor = iggy_common::MetadataChangeCursor {
+            log_id,
+            op: 42,
+            checksum: 0xf2a4,
+            ordinal: 1,
+        };
+        let server = iggy_common::MetadataChanges {
+            status: iggy_common::MetadataChangeStatus::Ok,
+            phase: iggy_common::MetadataChangePhase::Changes,
+            log_id: Some(log_id),
+            oldest_op: 1,
+            retained_since: 0,
+            head_op: 42,
+            next: Some(cursor),
+            has_more: true,
+            records: vec![iggy_common::MetadataChangeRecord {
+                op: 42,
+                ordinal: 1,
+                checksum: 0xf2a4,
+                timestamp: CREATED_AT,
+                actor_user_id: Some(0),
+                change: iggy_common::MetadataChange::UserDeleted(
+                    iggy_common::MetadataUserIdentity {
+                        user_id: 2,
+                        user_created_at: CREATED_AT,
+                        username: "reader".to_owned(),
+                    },
+                ),
+            }],
+            items: vec![],
+            current_page_token: None,
+        };
+        let mirror: MetadataChanges = decode(&server);
+        assert_eq!(mirror.status, MetadataChangeStatus::Ok);
+        assert_eq!(mirror.log_id, Some(format!("{log_id:032x}")));
+        assert_eq!((mirror.head_op, mirror.has_more), (42, true));
+        let next: Position = mirror
+            .next
+            .expect("a cursor")
+            .parse()
+            .expect("the UI reads the cursor");
+        assert_eq!((next.op, next.ordinal), (42, 1));
+        let [record] = mirror.records.as_slice() else {
+            panic!("one record, got {}", mirror.records.len());
+        };
+        assert_eq!((record.op, record.ordinal), (42, 1));
+        assert_eq!(
+            (record.timestamp, record.actor_user_id),
+            (CREATED_AT, Some(0))
+        );
+        assert_eq!(
+            (record.group.as_str(), record.kind.as_str()),
+            ("users", "user_deleted")
+        );
+        assert_eq!(record.summary(), "user \"reader\" (2)");
     }
 
     fn server_topic() -> iggy_common::Topic {

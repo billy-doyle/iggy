@@ -663,3 +663,86 @@ input.search {
 .inline-form button {
   margin-left: auto;
 }
+
+.change-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.filter-row label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.change-filters .flag-grid label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.change-filters .flag-grid input {
+  width: auto;
+  margin: 0;
+}
+
+.change-filters p {
+  margin: 0;
+}
+
+.change-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+td .ordinal {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.record-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+}
+
+.record-button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent);
+}
+
+.option-row {
+  margin-bottom: 0.75rem;
+}
+
+.option-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.option-heading .badge {
+  margin-left: 0;
+}
+
+.option-heading button {
+  margin-left: auto;
+}

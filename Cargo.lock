@@ -8085,6 +8085,7 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "dioxus",
+ "futures",
  "gloo-net 0.7.0",
  "gloo-timers 0.4.0",
  "iggy_common",

@@ -21,7 +21,8 @@ use gloo_timers::future::TimeoutFuture;
 
 use crate::Route;
 use crate::api::{self, ApiClient};
-use crate::components::{Logo, RefreshTick, use_session};
+use crate::components::{CurrentUser, Logo, RefreshTick, use_session};
+use crate::models::UserInfoDetails;
 use crate::settings::UiSettings;
 
 const IN_FLIGHT_POLL_MS: u32 = 50;
@@ -62,6 +63,7 @@ pub fn DashboardLayout() -> Element {
         let client = ApiClient::new(session.read().as_ref());
         client.user(user_id).await.ok()
     });
+    use_context_provider(|| CurrentUser(user));
 
     let sign_out = move |_| async move {
         // Logout does not revoke the bearer, so the token stays valid on the
@@ -78,6 +80,11 @@ pub fn DashboardLayout() -> Element {
         return rsx! {};
     }
 
+    let can_read_changes = user
+        .read()
+        .as_ref()
+        .and_then(Option::as_ref)
+        .is_some_and(UserInfoDetails::can_read_metadata_changes);
     let username = user
         .read()
         .as_ref()
@@ -92,6 +99,9 @@ pub fn DashboardLayout() -> Element {
                     Link { class: "nav-link", active_class: "active", to: Route::Overview {}, "Overview" }
                     Link { class: "nav-link", active_class: "active", to: Route::Streams {}, "Streams" }
                     Link { class: "nav-link", active_class: "active", to: Route::Users {}, "Users" }
+                    if can_read_changes {
+                        Link { class: "nav-link", active_class: "active", to: Route::Changes {}, "Metadata changes" }
+                    }
                     Link { class: "nav-link", active_class: "active", to: Route::WebUiSettings {}, "Settings" }
                 }
                 div { class: "sidebar-footer",

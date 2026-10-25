@@ -17,6 +17,7 @@
 
 mod api;
 mod auth;
+mod changes;
 mod components;
 mod decode;
 mod format;
@@ -32,8 +33,8 @@ use dioxus::prelude::*;
 use crate::auth::Session;
 use crate::components::RefreshTick;
 use crate::pages::{
-    DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage, Users,
-    WebUiSettings,
+    Changes, DashboardLayout, Messages, NotFound, Overview, SignIn, StreamPage, Streams, TopicPage,
+    Users, WebUiSettings,
 };
 use crate::settings::UiSettings;
 
@@ -64,6 +65,8 @@ pub enum Route {
         Users {},
         #[route("/dashboard/settings/webUI")]
         WebUiSettings {},
+        #[route("/dashboard/changes")]
+        Changes {},
     #[end_layout]
     #[route("/:..segments")]
     NotFound { segments: Vec<String> },
