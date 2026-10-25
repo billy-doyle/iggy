@@ -23,47 +23,53 @@
 }
 
 /* The theme lives on the app wrapper so "system" can follow the OS with a
-   media query alone. The light values appear twice for the same reason. */
+   media query alone. The light values appear twice for the same reason.
+   Colors follow iggy.apache.org and the benchmarks site. */
 .app {
-  --bg: #1e1f22;
-  --surface: #2b2d31;
-  --surface-raised: #313338;
-  --border: #404249;
-  --text: #f2f3f5;
-  --text-muted: #949ba4;
-  --accent: #32ad84;
-  --accent-hover: #5abd9c;
-  --danger: #f23f43;
+  --bg: #070c18;
+  --surface: #101318;
+  --surface-raised: #151b28;
+  --border: #2c323a;
+  --text: #f5f5f5;
+  --text-muted: #9ca3af;
+  --accent: #ff9103;
+  --accent-hover: #ffb347;
+  --on-accent: #0b1220;
+  --danger: #ef4444;
   color-scheme: dark;
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
 }
 
+/* The site's orange is too light for text on white, so light themes use a
+   darker shade of it. */
 .app[data-theme='light'] {
-  --bg: #f2f3f5;
+  --bg: #f5f5f5;
   --surface: #ffffff;
-  --surface-raised: #ebedef;
-  --border: #d7d9dc;
-  --text: #1e1f22;
-  --text-muted: #5c5f66;
-  --accent: #23845f;
-  --accent-hover: #32ad84;
-  --danger: #d83236;
+  --surface-raised: #ebebeb;
+  --border: #dddddd;
+  --text: #333333;
+  --text-muted: #666666;
+  --accent: #b35600;
+  --accent-hover: #9a4a00;
+  --on-accent: #ffffff;
+  --danger: #dc2626;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   .app[data-theme='system'] {
-    --bg: #f2f3f5;
+    --bg: #f5f5f5;
     --surface: #ffffff;
-    --surface-raised: #ebedef;
-    --border: #d7d9dc;
-    --text: #1e1f22;
-    --text-muted: #5c5f66;
-    --accent: #23845f;
-    --accent-hover: #32ad84;
-    --danger: #d83236;
+    --surface-raised: #ebebeb;
+    --border: #dddddd;
+    --text: #333333;
+    --text-muted: #666666;
+    --accent: #b35600;
+    --accent-hover: #9a4a00;
+    --on-accent: #ffffff;
+    --danger: #dc2626;
     color-scheme: light;
   }
 }
@@ -122,7 +128,7 @@ button {
   border: none;
   border-radius: 6px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -149,6 +155,7 @@ button.secondary:hover:not(:disabled) {
 
 button.danger {
   background: var(--danger);
+  color: #fff;
 }
 
 button.danger:hover:not(:disabled) {
@@ -646,7 +653,7 @@ input.search {
 
 .segmented button.selected {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .inline-form {
