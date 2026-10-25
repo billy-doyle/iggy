@@ -21,10 +21,7 @@ use crate::api::ApiError;
 use crate::components::{ErrorView, Loading, PageHeader, use_api};
 use crate::format;
 use crate::forms::{EditUserForm, NewUserForm};
-use crate::models::{UserInfo, UserStatus};
-
-/// The server's built-in root user always has this ID.
-const ROOT_USER_ID: u32 = 0;
+use crate::models::{ROOT_USER_ID, UserInfo, UserStatus};
 
 #[derive(Debug, Clone, PartialEq)]
 enum UserDialog {

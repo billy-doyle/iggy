@@ -39,6 +39,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 web-sys = { workspace = true, features = ["Storage"] }
 
+[dev-dependencies]
+futures = { workspace = true }
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 iggy_common = { workspace = true }
 
