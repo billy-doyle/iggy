@@ -22,125 +22,146 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value, json};
 
-/// A permission's JSON field name and the label the form shows for it.
+/// A permission's JSON field name, the label the form shows for it, and the
+/// grants that already give it. The implications follow the server's
+/// permissioner rules (`core/metadata/src/permissioner`).
 #[derive(Debug, PartialEq)]
 pub struct Flag {
     pub key: &'static str,
     pub label: &'static str,
+    /// Global grants that give this permission on every stream.
+    implied_by_global: &'static [&'static str],
+    /// Grants on the same stream that give this permission.
+    implied_by_stream: &'static [&'static str],
 }
 
+impl Flag {
+    const fn new(key: &'static str, label: &'static str) -> Self {
+        Self {
+            key,
+            label,
+            implied_by_global: &[],
+            implied_by_stream: &[],
+        }
+    }
+
+    const fn implied_by(
+        self,
+        global: &'static [&'static str],
+        stream: &'static [&'static str],
+    ) -> Self {
+        Self {
+            implied_by_global: global,
+            implied_by_stream: stream,
+            ..self
+        }
+    }
+}
+
+const GLOBAL_READS: &[&str] = &[
+    "manage_streams",
+    "read_streams",
+    "manage_topics",
+    "read_topics",
+];
+const GLOBAL_MANAGES: &[&str] = &["manage_streams", "manage_topics"];
+const STREAM_READS: &[&str] = &[
+    "manage_stream",
+    "read_stream",
+    "manage_topics",
+    "read_topics",
+];
+const STREAM_MANAGES: &[&str] = &["manage_stream", "manage_topics"];
+
 pub static GLOBAL_FLAGS: [Flag; 10] = [
-    Flag {
-        key: "manage_servers",
-        label: "Manage servers",
-    },
-    Flag {
-        key: "read_servers",
-        label: "Read servers",
-    },
-    Flag {
-        key: "manage_users",
-        label: "Manage users",
-    },
-    Flag {
-        key: "read_users",
-        label: "Read users",
-    },
-    Flag {
-        key: "manage_streams",
-        label: "Manage streams",
-    },
-    Flag {
-        key: "read_streams",
-        label: "Read streams",
-    },
-    Flag {
-        key: "manage_topics",
-        label: "Manage topics",
-    },
-    Flag {
-        key: "read_topics",
-        label: "Read topics",
-    },
-    Flag {
-        key: "poll_messages",
-        label: "Poll messages",
-    },
-    Flag {
-        key: "send_messages",
-        label: "Send messages",
-    },
+    Flag::new("manage_servers", "Manage servers"),
+    Flag::new("read_servers", "Read servers"),
+    Flag::new("manage_users", "Manage users"),
+    Flag::new("read_users", "Read users"),
+    Flag::new("manage_streams", "Manage streams"),
+    Flag::new("read_streams", "Read streams"),
+    Flag::new("manage_topics", "Manage topics"),
+    Flag::new("read_topics", "Read topics"),
+    Flag::new("poll_messages", "Poll messages"),
+    Flag::new("send_messages", "Send messages"),
 ];
 
 pub static STREAM_FLAGS: [Flag; 6] = [
-    Flag {
-        key: "manage_stream",
-        label: "Manage stream",
-    },
-    Flag {
-        key: "read_stream",
-        label: "Read stream",
-    },
-    Flag {
-        key: "manage_topics",
-        label: "Manage topics",
-    },
-    Flag {
-        key: "read_topics",
-        label: "Read topics",
-    },
-    Flag {
-        key: "poll_messages",
-        label: "Poll messages",
-    },
-    Flag {
-        key: "send_messages",
-        label: "Send messages",
-    },
+    Flag::new("manage_stream", "Manage stream").implied_by(&["manage_streams"], &[]),
+    Flag::new("read_stream", "Read stream")
+        .implied_by(&["manage_streams", "read_streams"], &["manage_stream"]),
+    Flag::new("manage_topics", "Manage topics").implied_by(GLOBAL_MANAGES, &["manage_stream"]),
+    Flag::new("read_topics", "Read topics").implied_by(
+        GLOBAL_READS,
+        &["manage_stream", "read_stream", "manage_topics"],
+    ),
+    Flag::new("poll_messages", "Poll messages").implied_by(
+        &[
+            "manage_streams",
+            "read_streams",
+            "manage_topics",
+            "read_topics",
+            "poll_messages",
+        ],
+        STREAM_READS,
+    ),
+    Flag::new("send_messages", "Send messages").implied_by(
+        &["manage_streams", "manage_topics", "send_messages"],
+        STREAM_MANAGES,
+    ),
 ];
 
 pub static TOPIC_FLAGS: [Flag; 4] = [
-    Flag {
-        key: "manage_topic",
-        label: "Manage topic",
-    },
-    Flag {
-        key: "read_topic",
-        label: "Read topic",
-    },
-    Flag {
-        key: "poll_messages",
-        label: "Poll messages",
-    },
-    Flag {
-        key: "send_messages",
-        label: "Send messages",
-    },
+    Flag::new("manage_topic", "Manage topic").implied_by(GLOBAL_MANAGES, STREAM_MANAGES),
+    Flag::new("read_topic", "Read topic").implied_by(GLOBAL_READS, STREAM_READS),
+    Flag::new("poll_messages", "Poll messages").implied_by(
+        &[
+            "manage_streams",
+            "read_streams",
+            "manage_topics",
+            "read_topics",
+            "poll_messages",
+        ],
+        &[
+            "manage_stream",
+            "read_stream",
+            "manage_topics",
+            "read_topics",
+            "poll_messages",
+        ],
+    ),
+    Flag::new("send_messages", "Send messages").implied_by(
+        &["manage_streams", "manage_topics", "send_messages"],
+        &["manage_stream", "manage_topics", "send_messages"],
+    ),
 ];
-
-/// The global permission that already grants a stream permission on every
-/// stream, which makes setting it per stream pointless.
-pub fn global_grant_for(stream_key: &str) -> &'static str {
-    match stream_key {
-        "manage_stream" => "manage_streams",
-        "read_stream" => "read_streams",
-        "manage_topics" => "manage_topics",
-        "read_topics" => "read_topics",
-        "poll_messages" => "poll_messages",
-        _ => "send_messages",
-    }
-}
 
 /// Granted permissions as sets of JSON field names. Anything not in a set is
 /// denied.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PermissionsDraft {
-    pub global: BTreeSet<&'static str>,
-    pub streams: BTreeMap<u32, BTreeSet<&'static str>>,
-    pub topics: BTreeMap<(u32, u32), BTreeSet<&'static str>>,
+    global: BTreeSet<&'static str>,
+    streams: BTreeMap<u32, BTreeSet<&'static str>>,
+    topics: BTreeMap<(u32, u32), BTreeSet<&'static str>>,
 }
 
 impl PermissionsDraft {
+    pub fn global_grants(&self, key: &str) -> bool {
+        self.global.contains(key)
+    }
+
+    /// Whether a broader grant already gives `flag` on `stream_id`, so the
+    /// form shows it as granted and locked.
+    pub fn implies(&self, flag: &Flag, stream_id: u32) -> bool {
+        flag.implied_by_global
+            .iter()
+            .any(|key| self.global.contains(key))
+            || flag
+                .implied_by_stream
+                .iter()
+                .any(|key| self.stream_grants(stream_id, key))
+    }
+
     pub fn set_global(&mut self, key: &'static str, granted: bool) {
         toggle(&mut self.global, key, granted);
     }
@@ -299,21 +320,38 @@ mod tests {
     }
 
     #[test]
-    fn given_each_stream_flag_should_map_to_its_global_grant() {
-        let pairs: Vec<_> = STREAM_FLAGS
-            .iter()
-            .map(|flag| (flag.key, global_grant_for(flag.key)))
-            .collect();
-        assert_eq!(
-            pairs,
-            [
-                ("manage_stream", "manage_streams"),
-                ("read_stream", "read_streams"),
-                ("manage_topics", "manage_topics"),
-                ("read_topics", "read_topics"),
-                ("poll_messages", "poll_messages"),
-                ("send_messages", "send_messages"),
-            ]
-        );
+    fn given_broader_grants_should_imply_narrower_flags() {
+        let topic_flag = |key| TOPIC_FLAGS.iter().find(|flag| flag.key == key).unwrap();
+        let stream_flag = |key| STREAM_FLAGS.iter().find(|flag| flag.key == key).unwrap();
+
+        let mut draft = PermissionsDraft::default();
+        draft.set_stream(1, "read_stream", true);
+        assert!(draft.implies(topic_flag("poll_messages"), 1));
+        assert!(draft.implies(topic_flag("read_topic"), 1));
+        assert!(!draft.implies(topic_flag("send_messages"), 1));
+        assert!(!draft.implies(topic_flag("poll_messages"), 2));
+
+        draft.set_global("manage_topics", true);
+        assert!(draft.implies(topic_flag("send_messages"), 2));
+        assert!(draft.implies(stream_flag("read_topics"), 2));
+        assert!(!draft.implies(stream_flag("manage_stream"), 2));
+    }
+
+    #[test]
+    fn given_any_flag_should_only_be_implied_by_real_keys() {
+        let global: Vec<_> = GLOBAL_FLAGS.iter().map(|flag| flag.key).collect();
+        let stream: Vec<_> = STREAM_FLAGS.iter().map(|flag| flag.key).collect();
+        for flag in STREAM_FLAGS.iter().chain(&TOPIC_FLAGS) {
+            assert!(
+                flag.implied_by_global
+                    .iter()
+                    .all(|key| global.contains(key))
+            );
+            assert!(
+                flag.implied_by_stream
+                    .iter()
+                    .all(|key| stream.contains(key))
+            );
+        }
     }
 }

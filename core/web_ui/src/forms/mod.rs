@@ -40,6 +40,11 @@ use crate::models::OptionInputs;
 const MAX_NAME_BYTES: usize = 255;
 /// The server's `MAX_PARTITIONS_COUNT`, per request.
 const MAX_PARTITIONS_COUNT: u32 = 1000;
+/// The server's username and password length limits, in bytes.
+const MIN_USERNAME_BYTES: usize = 3;
+const MAX_USERNAME_BYTES: usize = 50;
+const MIN_PASSWORD_BYTES: usize = 3;
+const MAX_PASSWORD_BYTES: usize = 100;
 
 /// Runs a form's request while `busy` holds the form still, and shows a
 /// failure in `error`. A 401 also ends the session, as `ErrorView` does.
@@ -97,6 +102,48 @@ impl FromStr for ResourceName {
             "" => Err(InvalidName::Blank),
             name if name.len() > MAX_NAME_BYTES => Err(InvalidName::TooLong),
             name => Ok(Self(name.to_owned())),
+        }
+    }
+}
+
+/// A username typed into a form, trimmed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Username(String);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("Username must be from {MIN_USERNAME_BYTES} to {MAX_USERNAME_BYTES} bytes long")]
+struct InvalidUsername;
+
+impl FromStr for Username {
+    type Err = InvalidUsername;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let username = text.trim();
+        if (MIN_USERNAME_BYTES..=MAX_USERNAME_BYTES).contains(&username.len()) {
+            Ok(Self(username.to_owned()))
+        } else {
+            Err(InvalidUsername)
+        }
+    }
+}
+
+/// A password typed into a form. It is not trimmed, because spaces can be
+/// part of a password.
+#[derive(Clone, PartialEq, Eq)]
+struct Password(String);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("Password must be from {MIN_PASSWORD_BYTES} to {MAX_PASSWORD_BYTES} bytes long")]
+struct InvalidPassword;
+
+impl FromStr for Password {
+    type Err = InvalidPassword;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        if (MIN_PASSWORD_BYTES..=MAX_PASSWORD_BYTES).contains(&text.len()) {
+            Ok(Self(text.to_owned()))
+        } else {
+            Err(InvalidPassword)
         }
     }
 }
@@ -174,6 +221,29 @@ mod tests {
         assert_eq!(
             "1001".parse::<InitialPartitionsCount>(),
             Err(InvalidPartitionsCount { min: 0 })
+        );
+    }
+
+    #[test]
+    fn given_username_text_should_trim_and_enforce_the_server_length() {
+        assert_eq!(" ops ".parse(), Ok(Username("ops".to_owned())));
+        for text in ["  ", "ab", &"u".repeat(51)] {
+            assert_eq!(text.parse::<Username>(), Err(InvalidUsername));
+        }
+        assert!("u".repeat(50).parse::<Username>().is_ok());
+    }
+
+    #[test]
+    fn given_password_text_should_keep_spaces_and_enforce_the_server_length() {
+        assert!(
+            " a "
+                .parse::<Password>()
+                .is_ok_and(|Password(text)| text == " a ")
+        );
+        assert_eq!("ab".parse::<Password>().err(), Some(InvalidPassword));
+        assert_eq!(
+            "p".repeat(101).parse::<Password>().err(),
+            Some(InvalidPassword)
         );
     }
 

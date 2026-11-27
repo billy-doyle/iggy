@@ -18,11 +18,11 @@
 use dioxus::prelude::*;
 
 use crate::components::{FormActions, Modal, api_client, focus_on_mount, use_session};
-use crate::models::{CreateUser, UserInfo, UserStatus, UserUpdate};
+use crate::models::{CreateUser, ROOT_USER_ID, UserInfo, UserStatus, UserUpdate};
 use crate::permissions::PermissionsDraft;
 
 use super::permissions::PermissionsEditor;
-use super::run_request;
+use super::{Password, Username, run_request};
 
 #[component]
 pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> Element {
@@ -32,13 +32,31 @@ pub fn NewUserForm(on_close: EventHandler<()>, on_created: EventHandler<()>) -> 
     let status = use_signal(|| UserStatus::Active);
     let draft = use_signal(PermissionsDraft::default);
     let busy = use_signal(|| false);
-    let error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<String>);
 
     let submit = move |event: FormEvent| async move {
         event.prevent_default();
+        let parsed = username
+            .read()
+            .parse::<Username>()
+            .map_err(|invalid| invalid.to_string())
+            .and_then(|username| {
+                let password = password
+                    .read()
+                    .parse::<Password>()
+                    .map_err(|invalid| invalid.to_string())?;
+                Ok((username, password))
+            });
+        let (Username(username), Password(password)) = match parsed {
+            Ok(parsed) => parsed,
+            Err(invalid) => {
+                error.set(Some(invalid));
+                return;
+            }
+        };
         let user = CreateUser {
-            username: username().trim().to_owned(),
-            password: password(),
+            username,
+            password,
             status: status(),
             permissions: draft.read().to_json(),
         };
@@ -102,11 +120,17 @@ pub fn EditUserForm(
     let mut username = use_signal(|| user.username.clone());
     let status = use_signal(|| user.status);
     let busy = use_signal(|| false);
-    let error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<String>);
 
     let submit = move |event: FormEvent| async move {
         event.prevent_default();
-        let next_username = username().trim().to_owned();
+        let Username(next_username) = match username.read().parse::<Username>() {
+            Ok(username) => username,
+            Err(invalid) => {
+                error.set(Some(invalid.to_string()));
+                return;
+            }
+        };
         let update = UserUpdate {
             username: (next_username != *initial_username.read()).then_some(next_username),
             status: (status() != initial_status()).then_some(status()),
@@ -139,7 +163,9 @@ pub fn EditUserForm(
                         oninput: move |event| username.set(event.value()),
                     }
                 }
-                StatusSelect { status }
+                if user_id != ROOT_USER_ID {
+                    StatusSelect { status }
+                }
                 FormActions {
                     submit_label: "Save",
                     busy: busy(),
@@ -166,17 +192,10 @@ fn StatusSelect(status: Signal<UserStatus>) -> Element {
                     option {
                         value: option_status.as_str(),
                         selected: option_status == status(),
-                        {capitalize(option_status.as_str())}
+                        "{option_status.label()}"
                     }
                 }
             }
         }
     }
-}
-
-fn capitalize(word: &str) -> String {
-    let mut chars = word.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_uppercase().chain(chars).collect()
-    })
 }

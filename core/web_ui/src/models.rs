@@ -46,6 +46,10 @@ pub struct TokenInfo {
     pub expiry: u64,
 }
 
+/// The server's built-in root user always has this ID, and the server refuses
+/// to change its status.
+pub const ROOT_USER_ID: u32 = 0;
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct UserInfo {
     pub id: u32,
@@ -68,6 +72,13 @@ impl UserStatus {
         match self {
             Self::Active => "active",
             Self::Inactive => "inactive",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Active => "Active",
+            Self::Inactive => "Inactive",
         }
     }
 }
@@ -694,6 +705,11 @@ mod tests {
             partitions_count: 1,
             options,
         }
+    }
+
+    #[test]
+    fn given_root_user_id_should_match_the_server_default() {
+        assert_eq!(ROOT_USER_ID, iggy_common::defaults::DEFAULT_ROOT_USER_ID);
     }
 
     fn decode<T: DeserializeOwned>(value: &impl Serialize) -> T {

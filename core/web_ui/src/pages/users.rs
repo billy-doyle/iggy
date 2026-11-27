@@ -21,20 +21,17 @@ use crate::api::ApiError;
 use crate::components::{ErrorView, Loading, PageHeader, api_client, use_session};
 use crate::format;
 use crate::forms::{EditUserForm, NewUserForm};
-use crate::models::{UserInfo, UserStatus};
+use crate::models::{ROOT_USER_ID, UserInfo, UserStatus};
 
-/// The server's built-in root user always has this ID.
-const ROOT_USER_ID: u32 = 0;
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum UserDialog {
     New,
-    Edit(UserInfo),
+    Edit(u32),
 }
 
 #[component]
 pub fn Users() -> Element {
-    let session = use_session();
+    let mut session = use_session();
     let mut search = use_signal(String::new);
     let mut dialog = use_signal(|| None::<UserDialog>);
     let mut users = use_resource(move || async move {
@@ -44,18 +41,27 @@ pub fn Users() -> Element {
     });
     let close = move |_| dialog.set(None);
     let saved = move |_| {
+        let edited_self = matches!(
+            (dialog(), session.read().as_ref()),
+            (Some(UserDialog::Edit(user_id)), Some(signed_in)) if signed_in.user_id == user_id
+        );
         dialog.set(None);
         users.restart();
+        // The sidebar's username comes from a resource that depends only on
+        // the session, so rewriting the session reloads it after a self-rename.
+        if edited_self {
+            session.write();
+        }
     };
 
     let body = match &*users.read() {
         None => rsx! { Loading {} },
         Some(Err(error)) => rsx! { ErrorView { error: error.clone() } },
         Some(Ok(all_users)) => {
-            let query = search().trim().to_lowercase();
+            let query = search.read().trim().to_lowercase();
             let matching: Vec<&UserInfo> = all_users
                 .iter()
-                .filter(|user| user.username.to_lowercase().contains(&query))
+                .filter(|user| query.is_empty() || user.username.to_lowercase().contains(&query))
                 .collect();
             rsx! {
                 p { class: "muted", "{matching.len()} of {all_users.len()} users" }
@@ -90,8 +96,8 @@ pub fn Users() -> Element {
                                     button {
                                         class: "secondary small",
                                         onclick: {
-                                            let user = user.clone();
-                                            move |_| dialog.set(Some(UserDialog::Edit(user.clone())))
+                                            let user_id = user.id;
+                                            move |_| dialog.set(Some(UserDialog::Edit(user_id)))
                                         },
                                         "Edit"
                                     }
@@ -124,9 +130,18 @@ pub fn Users() -> Element {
             Some(UserDialog::New) => rsx! {
                 NewUserForm { on_close: close, on_created: saved }
             },
-            Some(UserDialog::Edit(user)) => rsx! {
-                EditUserForm { user, on_close: close, on_saved: saved }
-            },
+            Some(UserDialog::Edit(user_id)) => {
+                let user = users
+                    .read()
+                    .as_ref()
+                    .and_then(|users| users.as_ref().ok()?.iter().find(|user| user.id == user_id).cloned());
+                match user {
+                    Some(user) => rsx! {
+                        EditUserForm { user, on_close: close, on_saved: saved }
+                    },
+                    None => rsx! {},
+                }
+            }
             None => rsx! {},
         }
     }

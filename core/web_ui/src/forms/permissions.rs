@@ -18,10 +18,12 @@
 use dioxus::prelude::*;
 
 use crate::api::ApiError;
-use crate::components::{api_client, use_session};
-use crate::permissions::{
-    Flag, GLOBAL_FLAGS, PermissionsDraft, STREAM_FLAGS, TOPIC_FLAGS, global_grant_for,
-};
+use crate::components::{ErrorView, Loading, api_client, use_session};
+use crate::models::Topic;
+use crate::permissions::{Flag, GLOBAL_FLAGS, PermissionsDraft, STREAM_FLAGS, TOPIC_FLAGS};
+
+/// The topics of one stream, tagged with that stream's ID.
+type StreamTopics = (u32, Result<Vec<Topic>, ApiError>);
 
 /// Global, per-stream and per-topic checkboxes for a new user's permissions.
 /// One stream and one topic are edited at a time, chosen from lists.
@@ -47,25 +49,29 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
         })
     });
     let topics = use_resource(move || async move {
-        let Some(stream_id) = stream_id() else {
-            return Ok(Vec::new());
-        };
-        let mut topics = api_client(session).stream(stream_id).await?.topics;
-        topics.sort_by_key(|topic| topic.id);
-        Ok::<_, ApiError>(topics)
+        let stream_id = stream_id()?;
+        let topics = api_client(session).stream(stream_id).await.map(|stream| {
+            let mut topics = stream.topics;
+            topics.sort_by_key(|topic| topic.id);
+            topics
+        });
+        Some::<StreamTopics>((stream_id, topics))
     });
     let topic_id = use_memo(move || {
         let topics = topics.read();
-        let topics = topics.as_ref()?.as_ref().ok()?;
+        let topics = topics_of(&topics, stream_id())?.as_ref().ok()?;
         chosen_topic()
             .filter(|chosen| topics.iter().any(|topic| topic.id == *chosen))
             .or_else(|| topics.first().map(|topic| topic.id))
     });
 
     let streams_read = streams.read();
-    let stream_list = match &*streams_read {
-        Some(Ok(streams)) => streams.as_slice(),
-        _ => &[],
+    // Global permissions do not need the stream list, so only the stream
+    // section waits for it or shows its error.
+    let (stream_list, stream_status) = match &*streams_read {
+        None => (&[][..], Some(rsx! { Loading {} })),
+        Some(Err(error)) => (&[][..], Some(rsx! { ErrorView { error: error.clone() } })),
+        Some(Ok(streams)) => (streams.as_slice(), None),
     };
     let customized: Vec<String> = draft
         .read()
@@ -78,6 +84,7 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
                 .map_or_else(|| format!("#{id}"), |stream| stream.name.clone())
         })
         .collect();
+    let topics_read = topics.read();
 
     rsx! {
         fieldset { class: "permissions",
@@ -87,7 +94,7 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
                     FlagCheckbox {
                         key: "{flag.key}",
                         flag,
-                        checked: draft.read().global.contains(flag.key),
+                        checked: draft.read().global_grants(flag.key),
                         on_change: move |granted| draft.write().set_global(flag.key, granted),
                     }
                 }
@@ -95,7 +102,9 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
         }
         fieldset { class: "permissions",
             legend { "Stream permissions" }
-            if stream_list.is_empty() {
+            if let Some(status) = stream_status {
+                {status}
+            } else if stream_list.is_empty() {
                 p { class: "muted", "There are no streams to grant permissions on." }
             } else {
                 select {
@@ -117,7 +126,7 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
                     div { class: "flag-grid",
                         for flag in STREAM_FLAGS.iter() {
                             {
-                                let implied = draft.read().global.contains(global_grant_for(flag.key));
+                                let implied = draft.read().implies(flag, stream_id);
                                 rsx! {
                                     FlagCheckbox {
                                         key: "{flag.key}",
@@ -136,36 +145,47 @@ pub fn PermissionsEditor(draft: Signal<PermissionsDraft>) -> Element {
                 }
             }
         }
-        if let (Some(stream_id), Some(Ok(topics))) = (stream_id(), &*topics.read()) {
+        if let Some(stream_id) = stream_id() {
             fieldset { class: "permissions",
                 legend { "Topic permissions" }
-                if topics.is_empty() {
-                    p { class: "muted", "This stream has no topics." }
-                } else {
-                    select {
-                        aria_label: "Topic",
-                        onchange: move |event| chosen_topic.set(event.value().parse().ok()),
-                        for topic in topics {
-                            option {
-                                key: "{topic.id}",
-                                value: "{topic.id}",
-                                selected: topic_id() == Some(topic.id),
-                                "{topic.name}"
-                            }
-                        }
-                    }
-                    if let Some(topic_id) = topic_id() {
-                        div { class: "flag-grid",
-                            for flag in TOPIC_FLAGS.iter() {
-                                FlagCheckbox {
-                                    key: "{flag.key}",
-                                    flag,
-                                    checked: draft.read().topic_grants(stream_id, topic_id, flag.key),
-                                    on_change: move |granted| draft.write().set_topic(stream_id, topic_id, flag.key, granted),
+                match topics_of(&topics_read, Some(stream_id)) {
+                    None => rsx! { Loading {} },
+                    Some(Err(error)) => rsx! { ErrorView { error: error.clone() } },
+                    Some(Ok(topics)) if topics.is_empty() => rsx! {
+                        p { class: "muted", "This stream has no topics." }
+                    },
+                    Some(Ok(topics)) => rsx! {
+                        select {
+                            aria_label: "Topic",
+                            onchange: move |event| chosen_topic.set(event.value().parse().ok()),
+                            for topic in topics {
+                                option {
+                                    key: "{topic.id}",
+                                    value: "{topic.id}",
+                                    selected: topic_id() == Some(topic.id),
+                                    "{topic.name}"
                                 }
                             }
                         }
-                    }
+                        if let Some(topic_id) = topic_id() {
+                            div { class: "flag-grid",
+                                for flag in TOPIC_FLAGS.iter() {
+                                    {
+                                        let implied = draft.read().implies(flag, stream_id);
+                                        rsx! {
+                                            FlagCheckbox {
+                                                key: "{flag.key}",
+                                                flag,
+                                                checked: implied || draft.read().topic_grants(stream_id, topic_id, flag.key),
+                                                disabled: implied,
+                                                on_change: move |granted| draft.write().set_topic(stream_id, topic_id, flag.key, granted),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -189,5 +209,19 @@ fn FlagCheckbox(
             }
             "{flag.label}"
         }
+    }
+}
+
+/// The loaded topics when they belong to `stream_id`. A resource keeps its
+/// last value while it reloads, so after a stream change the old stream's
+/// topics stay until the new ones arrive, and a click on them would grant on
+/// the wrong topic.
+fn topics_of(
+    loaded: &Option<Option<StreamTopics>>,
+    stream_id: Option<u32>,
+) -> Option<&Result<Vec<Topic>, ApiError>> {
+    match loaded {
+        Some(Some((owner, topics))) if Some(*owner) == stream_id => Some(topics),
+        _ => None,
     }
 }
