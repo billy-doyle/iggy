@@ -24,7 +24,13 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::Value;
 
-use crate::models::HeaderEntry;
+use crate::format;
+use crate::models::{HeaderField, UserHeaders};
+
+/// How deep `unnest_json` goes. Each document stored as text starts a fresh
+/// parser depth budget, so without this the unnested tree, and the recursion
+/// that prints it, could grow far past what one parse allows.
+const MAX_UNNEST_DEPTH: usize = 128;
 
 /// How to read a payload, chosen in the message inspector. A `codec` user
 /// header naming one of these preselects it.
@@ -46,18 +52,31 @@ impl Decoder {
         }
     }
 
+    /// The string decoder shows a payload that is not UTF-8 as hex, as the
+    /// message list does, instead of replacing the bytes it cannot read.
     pub fn decode(self, payload: &[u8]) -> Result<String, DecodeError> {
-        let text = String::from_utf8_lossy(payload);
+        let text = match std::str::from_utf8(payload) {
+            Ok(text) => text,
+            Err(_) if self == Self::String => return Ok(format::hex(payload)),
+            Err(_) => return Err(DecodeError::NotUtf8(self)),
+        };
+        let invalid = |reason: String| DecodeError::Invalid {
+            decoder: self,
+            reason,
+        };
         match self {
-            Self::String => Ok(text.into_owned()),
+            Self::String => Ok(text.to_owned()),
             Self::Json => {
-                let value: Value = serde_json::from_str(&text).map_err(|_| DecodeError(self))?;
-                serde_json::to_string_pretty(&unnest_json(value)).map_err(|_| DecodeError(self))
+                let value: Value =
+                    serde_json::from_str(text).map_err(|error| invalid(error.to_string()))?;
+                serde_json::to_string_pretty(&unnest_json(value, MAX_UNNEST_DEPTH))
+                    .map_err(|error| invalid(error.to_string()))
             }
-            Self::Xml => match roxmltree::Document::parse(&text) {
-                Ok(_) => Ok(text.into_owned()),
-                Err(_) => Err(DecodeError(self)),
-            },
+            // A DTD stays refused, because entity expansion can blow up a
+            // small payload. The reason then says so.
+            Self::Xml => roxmltree::Document::parse(text)
+                .map(|_| text.to_owned())
+                .map_err(|error| invalid(error.to_string())),
         }
     }
 }
@@ -74,59 +93,83 @@ impl FromStr for Decoder {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("the payload is not valid {}", .0.as_str().to_uppercase())]
-pub struct DecodeError(Decoder);
+pub enum DecodeError {
+    #[error("the payload is not UTF-8 text, so it is not valid {}", .0.as_str().to_uppercase())]
+    NotUtf8(Decoder),
+    #[error("the payload is not valid {}: {reason}", .decoder.as_str().to_uppercase())]
+    Invalid { decoder: Decoder, reason: String },
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("no decoder named {0}")]
 pub struct UnknownDecoder(String);
 
-/// The decoder a `codec` user header asks for, if there is one.
-pub fn codec(headers: &[HeaderEntry]) -> Option<String> {
-    headers
-        .iter()
-        .find(|entry| {
-            entry.key.kind == "string" && header_value(&entry.key.kind, &entry.key.value) == "codec"
-        })
-        .map(|entry| header_value(&entry.value.kind, &entry.value.value))
+impl UserHeaders {
+    /// The decoder a `codec` user header asks for, if there is one.
+    pub fn codec(&self) -> Option<String> {
+        let Self::Entries(entries) = self else {
+            return None;
+        };
+        entries
+            .iter()
+            .find(|entry| {
+                entry
+                    .key
+                    .bytes()
+                    .is_some_and(|bytes| bytes.as_slice() == b"codec")
+            })
+            .map(|entry| entry.value.to_string())
+    }
 }
 
-/// Renders one side of a user header by its kind. Numbers are little-endian,
-/// as the server stores them. Raw bytes, and anything that does not match
-/// its kind, stay as the server's base64.
-pub fn header_value(kind: &str, base64_value: &str) -> String {
-    let Ok(bytes) = STANDARD.decode(base64_value) else {
-        return base64_value.to_owned();
-    };
-    decode_header(kind, &bytes).unwrap_or_else(|| base64_value.to_owned())
+impl HeaderField {
+    fn bytes(&self) -> Option<Vec<u8>> {
+        STANDARD.decode(&self.value).ok()
+    }
 }
 
-/// A checksum in hex, the form other Iggy tools print it in.
-pub struct Checksum(pub u64);
-
-impl fmt::Display for Checksum {
+/// One side of a user header, rendered by its kind. Numbers are
+/// little-endian, as the server stores them. Raw bytes, and anything that
+/// does not match its kind, stay as the server's base64.
+impl fmt::Display for HeaderField {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "0x{:016X}", self.0)
+        match self
+            .bytes()
+            .and_then(|bytes| decode_header(&self.kind, &bytes))
+        {
+            Some(text) => formatter.write_str(&text),
+            None => formatter.write_str(&self.value),
+        }
     }
 }
 
 /// Parses string values that hold a JSON object or array, so a document
 /// stored inside another as text is shown as a document. Other strings stay
 /// strings, so `"123"` is not turned into a number.
-fn unnest_json(value: Value) -> Value {
+fn unnest_json(value: Value, depth: usize) -> Value {
+    let Some(inner_depth) = depth.checked_sub(1) else {
+        return value;
+    };
     match value {
-        Value::String(text) => match serde_json::from_str::<Value>(&text) {
-            Ok(inner @ (Value::Object(_) | Value::Array(_))) => unnest_json(inner),
-            _ => Value::String(text),
-        },
-        Value::Array(items) => Value::Array(items.into_iter().map(unnest_json).collect()),
+        Value::String(text) if text.trim_start().starts_with(['{', '[']) => {
+            match serde_json::from_str::<Value>(&text) {
+                Ok(inner @ (Value::Object(_) | Value::Array(_))) => unnest_json(inner, inner_depth),
+                _ => Value::String(text),
+            }
+        }
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| unnest_json(item, inner_depth))
+                .collect(),
+        ),
         Value::Object(fields) => Value::Object(
             fields
                 .into_iter()
-                .map(|(key, field)| (key, unnest_json(field)))
+                .map(|(key, field)| (key, unnest_json(field, inner_depth)))
                 .collect(),
         ),
-        scalar => scalar,
+        other => other,
     }
 }
 
@@ -154,7 +197,7 @@ fn decode_header(kind: &str, bytes: &[u8]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::HeaderField;
+    use crate::models::HeaderEntry;
 
     fn field(kind: &str, bytes: &[u8]) -> HeaderField {
         HeaderField {
@@ -175,11 +218,40 @@ mod tests {
     }
 
     #[test]
-    fn given_invalid_payload_should_name_the_decoder() {
+    fn given_json_object_should_keep_its_key_order() {
+        let decoded = Decoder::Json
+            .decode(br#"{"zebra":1,"apple":2,"mango":3}"#)
+            .unwrap();
+        let positions: Vec<_> = ["zebra", "apple", "mango"]
+            .iter()
+            .map(|key| decoded.find(key).unwrap())
+            .collect();
+        assert!(positions.is_sorted(), "{decoded}");
+    }
+
+    #[test]
+    fn given_nesting_past_the_budget_should_leave_strings_as_text() {
+        let payload = serde_json::json!(["[1]"]);
+        assert_eq!(unnest_json(payload.clone(), 1), payload);
+        assert_eq!(unnest_json(payload, 2), serde_json::json!([[1]]));
+    }
+
+    #[test]
+    fn given_invalid_payload_should_name_the_decoder_and_reason() {
         let error = Decoder::Json.decode(b"{not json").unwrap_err();
-        assert_eq!(error.to_string(), "the payload is not valid JSON");
+        assert!(
+            error
+                .to_string()
+                .starts_with("the payload is not valid JSON: "),
+            "{error}"
+        );
         let error = Decoder::Xml.decode(b"<a><b></a>").unwrap_err();
-        assert_eq!(error.to_string(), "the payload is not valid XML");
+        assert!(
+            error
+                .to_string()
+                .starts_with("the payload is not valid XML: "),
+            "{error}"
+        );
     }
 
     #[test]
@@ -189,10 +261,12 @@ mod tests {
     }
 
     #[test]
-    fn given_binary_payload_string_decoder_should_replace_invalid_bytes() {
+    fn given_binary_payload_should_show_hex_or_refuse_to_parse() {
+        let binary = [b'o', b'k', 0xff];
+        assert_eq!(Decoder::String.decode(&binary).unwrap(), "6f 6b ff");
         assert_eq!(
-            Decoder::String.decode(&[b'o', b'k', 0xff]).unwrap(),
-            "ok\u{fffd}"
+            Decoder::Json.decode(&binary),
+            Err(DecodeError::NotUtf8(Decoder::Json))
         );
     }
 
@@ -219,41 +293,31 @@ mod tests {
             (field("float64", &1.5_f64.to_le_bytes()), "1.5"),
         ];
         for (header, expected) in cases {
-            assert_eq!(
-                header_value(&header.kind, &header.value),
-                expected,
-                "{}",
-                header.kind
-            );
+            assert_eq!(header.to_string(), expected, "{}", header.kind);
         }
     }
 
     #[test]
     fn given_raw_or_mismatched_header_should_keep_base64() {
         let raw = field("raw", &[1, 2, 3]);
-        assert_eq!(header_value(&raw.kind, &raw.value), raw.value);
+        assert_eq!(raw.to_string(), raw.value);
         let short = field("uint32", &[1, 2]);
-        assert_eq!(header_value(&short.kind, &short.value), short.value);
+        assert_eq!(short.to_string(), short.value);
     }
 
     #[test]
     fn given_codec_header_should_find_its_value() {
-        let headers = vec![
-            HeaderEntry {
-                key: field("string", b"trace"),
-                value: field("uint8", &[1]),
-            },
-            HeaderEntry {
-                key: field("string", b"codec"),
-                value: field("string", b"json"),
-            },
-        ];
-        assert_eq!(codec(&headers).as_deref(), Some("json"));
-        assert_eq!(codec(&headers[..1]), None);
-    }
-
-    #[test]
-    fn given_checksum_should_render_padded_hex() {
-        assert_eq!(Checksum(0xBEEF).to_string(), "0x000000000000BEEF");
+        let trace = HeaderEntry {
+            key: field("string", b"trace"),
+            value: field("uint8", &[1]),
+        };
+        let codec = HeaderEntry {
+            key: field("string", b"codec"),
+            value: field("string", b"json"),
+        };
+        let headers = UserHeaders::Entries(vec![trace.clone(), codec]);
+        assert_eq!(headers.codec().as_deref(), Some("json"));
+        assert_eq!(UserHeaders::Entries(vec![trace]).codec(), None);
+        assert_eq!(UserHeaders::Raw("AAEC".to_owned()).codec(), None);
     }
 }

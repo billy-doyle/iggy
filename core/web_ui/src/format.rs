@@ -139,7 +139,7 @@ pub fn thread_count(count: u32) -> String {
 }
 
 /// Shows the payload as text when it is UTF-8 and as hex otherwise.
-pub fn payload(base64_payload: &str) -> String {
+fn payload(base64_payload: &str) -> String {
     match STANDARD.decode(base64_payload) {
         Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|error| hex(error.as_bytes())),
         Err(_) => base64_payload.to_owned(),
@@ -191,7 +191,7 @@ pub fn message_id(id: u128) -> String {
     )
 }
 
-fn hex(bytes: &[u8]) -> String {
+pub fn hex(bytes: &[u8]) -> String {
     let mut text = String::with_capacity(bytes.len() * 3);
     for (index, byte) in bytes.iter().enumerate() {
         if index > 0 {

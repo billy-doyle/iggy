@@ -49,6 +49,17 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
     let session = use_session();
     let navigator = navigator();
     let mut inspecting = use_signal(|| None::<Rc<IggyMessage>>);
+    // The page gets new props without a remount, so browser Back or Forward
+    // would otherwise leave a message from another page open.
+    use_effect(use_reactive!(|(
+        stream_id,
+        topic_id,
+        partition_id,
+        offset,
+    )| {
+        let _route = (stream_id, topic_id, partition_id, offset);
+        inspecting.set(None);
+    }));
 
     let mut page = use_resource(use_reactive!(|(
         stream_id,
@@ -185,7 +196,11 @@ pub fn Messages(stream_id: u32, topic_id: u32, partition_id: u32, offset: Option
         {header}
         {body}
         if let Some(message) = inspecting() {
-            MessageInspector { message, on_close: move |_| inspecting.set(None) }
+            MessageInspector {
+                key: "{message.header.offset}",
+                message,
+                on_close: move |_| inspecting.set(None),
+            }
         }
     }
 }
